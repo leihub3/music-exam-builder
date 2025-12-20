@@ -1,0 +1,21 @@
+{
+  "name": "@music-exam-builder/shared",
+  "version": "1.0.0",
+  "description": "Shared TypeScript types for Music Exam Builder",
+  "main": "types/index.ts",
+  "types": "types/index.ts",
+  "exports": {
+    ".": "./types/index.ts",
+    "./types": "./types/index.ts"
+  },
+  "scripts": {
+    "build": "tsc"
+  },
+  "keywords": ["types", "typescript"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}
+
