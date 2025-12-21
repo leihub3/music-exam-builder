@@ -4,13 +4,13 @@ import { examService } from '@/lib/services/examService'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { examId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { profile } = await authenticateUser(request)
     requireTeacher(profile)
 
-    const { examId } = params
+    const examId = params.id
     const sectionData = await request.json()
 
     // Convert camelCase to snake_case

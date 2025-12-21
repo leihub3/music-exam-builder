@@ -1,11 +1,11 @@
 import { NextRequest } from 'next/server'
-import { createClient } from '@supabase/supabase-js'
+import { createClient, SupabaseClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from '@/lib/supabase/admin'
 
 export interface AuthenticatedUser {
   user: any
   profile: any
-  supabase: ReturnType<typeof createClient>
+  supabase: SupabaseClient<any>
 }
 
 /**

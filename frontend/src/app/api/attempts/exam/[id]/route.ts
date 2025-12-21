@@ -4,13 +4,13 @@ import { attemptService } from '@/lib/services/attemptService'
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { examId: string } }
+  { params }: { params: { id: string } }
 ) {
   try {
     const { profile } = await authenticateUser(request)
     requireTeacher(profile)
 
-    const { examId } = params
+    const examId = params.id
     const attempts = await attemptService.getExamAttempts(examId)
 
     return NextResponse.json({
