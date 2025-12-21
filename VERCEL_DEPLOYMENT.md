@@ -11,7 +11,8 @@ The frontend (Next.js app) is ready to deploy to Vercel.
 1. **Connect your repository to Vercel**
    - Go to [vercel.com](https://vercel.com)
    - Import your Git repository
-   - Vercel will auto-detect the Next.js framework in the `frontend` directory
+   - **Important**: In Project Settings > General, set the **Root Directory** to `frontend`
+   - Vercel will auto-detect the Next.js framework
 
 2. **Configure Environment Variables**
    In the Vercel dashboard, add these environment variables:
@@ -21,7 +22,7 @@ The frontend (Next.js app) is ready to deploy to Vercel.
 
 3. **Deploy**
    - Vercel will automatically build and deploy on every push to your main branch
-   - The `vercel.json` configuration ensures the build runs from the `frontend` directory
+   - Make sure the Root Directory is set to `frontend` in Project Settings
 
 ## Backend Deployment
 
@@ -43,7 +44,7 @@ This is a monorepo with:
 - `backend/` - Express API server (deploy separately or convert to API routes)
 - `shared/` - Shared TypeScript types (automatically included)
 
-The `vercel.json` configuration sets `rootDirectory: "frontend"` so Vercel knows to build from the frontend folder.
+**Important**: Configure the Root Directory as `frontend` in Vercel Project Settings so Vercel knows to build from the frontend folder.
 
 ## Build Process
 
