@@ -52,7 +52,10 @@ This is a monorepo with:
 - `backend/` - Express API server (deploy separately or convert to API routes)
 - `shared/` - Shared TypeScript types (automatically included)
 
-**Important**: Configure the Root Directory as `frontend` in Vercel Project Settings so Vercel knows to build from the frontend folder.
+**Important**: 
+- Configure the **Root Directory** as `frontend` in Vercel Project Settings (Project Settings → General → Build & Development Settings)
+- The `vercel.json` file at the root specifies the output directory as `.next` (Next.js default)
+- When Root Directory is set to `frontend`, all paths in `vercel.json` are relative to the `frontend` directory
 
 ## Build Process
 
