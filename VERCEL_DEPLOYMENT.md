@@ -25,7 +25,7 @@ The frontend (Next.js app) is ready to deploy to Vercel.
    In the Vercel dashboard, add these environment variables:
    - `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anonymous key
-   - `NEXT_PUBLIC_API_URL` - Your backend API URL (e.g., `https://your-backend.vercel.app` or wherever your backend is hosted)
+   - `SUPABASE_SERVICE_ROLE_KEY` - Your Supabase service role key (for admin operations in API routes)
 
 4. **Deploy**
    - Trigger a new deployment (or push to your main branch)
@@ -34,16 +34,15 @@ The frontend (Next.js app) is ready to deploy to Vercel.
 
 ## Backend Deployment
 
-The backend Express server needs to be deployed separately. You have two options:
+✅ **The backend has been migrated to Next.js API routes!**
 
-### Option 1: Deploy Backend as Separate Service
-- Deploy to a service like Railway, Render, or Fly.io
-- Update `NEXT_PUBLIC_API_URL` in Vercel to point to your backend URL
+All Express routes have been converted to Next.js API routes located in `frontend/src/app/api/`. This means:
+- ✅ No separate backend deployment needed
+- ✅ All API routes are deployed together with the frontend on Vercel
+- ✅ API calls use relative paths (`/api/...`) - no `NEXT_PUBLIC_API_URL` needed
+- ✅ All routes are serverless functions on Vercel
 
-### Option 2: Convert to Next.js API Routes (Recommended for Vercel)
-- Migrate Express routes to Next.js API routes in `frontend/src/app/api/`
-- This allows both frontend and backend to be deployed together on Vercel
-- No separate backend service needed
+The backend folder (`backend/`) is kept for reference but is no longer needed for deployment.
 
 ## Monorepo Structure
 
@@ -81,6 +80,7 @@ Vercel will:
   - Restart the deployment after adding new environment variables
 
 - **API calls failing**: 
-  - Verify `NEXT_PUBLIC_API_URL` points to your deployed backend
-  - Check browser console for CORS or connection errors
+  - API routes are now part of the Next.js app, so they should work automatically
+  - Check browser console for authentication or network errors
+  - Verify `SUPABASE_SERVICE_ROLE_KEY` is set correctly for admin operations
 

@@ -1,14 +1,12 @@
 import axios, { AxiosInstance, AxiosRequestConfig } from 'axios'
 import { supabase } from './supabase/client'
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000'
-
 class ApiClient {
   private client: AxiosInstance
 
   constructor() {
     this.client = axios.create({
-      baseURL: `${API_URL}/api`,
+      baseURL: '/api',
       headers: {
         'Content-Type': 'application/json',
       },
