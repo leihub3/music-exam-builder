@@ -128,7 +128,7 @@ export default function TeacherDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {exams.filter(e => e.is_published).length}
+                {exams.filter(e => e.isPublished).length}
               </div>
             </CardContent>
           </Card>
@@ -140,7 +140,7 @@ export default function TeacherDashboard() {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {exams.filter(e => !e.is_published).length}
+                {exams.filter(e => !e.isPublished).length}
               </div>
             </CardContent>
           </Card>
@@ -174,11 +174,11 @@ export default function TeacherDashboard() {
                         <CardDescription>{exam.description}</CardDescription>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                        exam.is_published 
+                        exam.isPublished 
                           ? 'bg-green-100 text-green-800' 
                           : 'bg-gray-100 text-gray-800'
                       }`}>
-                        {exam.is_published ? 'Published' : 'Draft'}
+                        {exam.isPublished ? 'Published' : 'Draft'}
                       </span>
                     </div>
                   </CardHeader>
@@ -195,7 +195,7 @@ export default function TeacherDashboard() {
                             Edit
                           </Button>
                         </Link>
-                        {exam.is_published && (
+                        {exam.isPublished && (
                           <Button
                             variant="outline"
                             size="sm"

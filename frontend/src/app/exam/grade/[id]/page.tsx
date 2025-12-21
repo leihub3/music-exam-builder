@@ -288,10 +288,12 @@ export default function GradeAttemptPage() {
   const student = (attempt as any).student
   const totalAnswers = attempt.answers?.length || 0
   const gradedAnswers = attempt.answers?.filter(a => a.isGraded).length || 0
-  const needsManualGrading = attempt.answers?.filter(a => 
-    !a.isGraded && a.question?.section?.section_type !== 'TRUE_FALSE' && 
-    a.question?.section?.section_type !== 'MULTIPLE_CHOICE'
-  ) || []
+  const needsManualGrading = attempt.answers?.filter(a => {
+    if (a.isGraded) return false
+    const question = a.question as any
+    const sectionType = question?.section?.section_type || question?.section?.sectionType
+    return sectionType !== 'TRUE_FALSE' && sectionType !== 'MULTIPLE_CHOICE'
+  }) || []
   
   // Calculate totalPoints from sum of maxPoints if not set or is 0
   const calculatedTotalPoints = attempt.totalPoints || (attempt as any).total_points || 
@@ -383,14 +385,16 @@ export default function GradeAttemptPage() {
 
             // Get section type from question.section or question.section_type
             // Also check if question has transposition data to infer type
-            let sectionType = question.section?.section_type || 
-                             (question as any).section_type ||
-                             (question as any).sectionType
+            const questionAny = question as any
+            let sectionType = questionAny.section?.section_type || 
+                             questionAny.section?.sectionType ||
+                             questionAny.section_type ||
+                             questionAny.sectionType
             
             // If sectionType is not found but question has transposition data, assume TRANSPOSITION
-            if (!sectionType && ((question as any).transposition || (question as any).typeData)) {
-              if ((question as any).transposition || 
-                  ((question as any).typeData && ((question as any).typeData.sourceInstrument || (question as any).typeData.source_instrument))) {
+            if (!sectionType && (questionAny.transposition || questionAny.typeData)) {
+              if (questionAny.transposition || 
+                  (questionAny.typeData && (questionAny.typeData.sourceInstrument || questionAny.typeData.source_instrument))) {
                 sectionType = 'TRANSPOSITION'
               }
             }
@@ -399,14 +403,14 @@ export default function GradeAttemptPage() {
             console.log('Question data:', {
               questionId: question.id,
               sectionType,
-              hasTransposition: !!(question as any).transposition,
-              transposition: (question as any).transposition,
-              section: question.section,
-              typeData: (question as any).typeData
+              hasTransposition: !!questionAny.transposition,
+              transposition: questionAny.transposition,
+              section: questionAny.section,
+              typeData: questionAny.typeData
             })
 
             const isAutoGraded = sectionType === 'TRUE_FALSE' || sectionType === 'MULTIPLE_CHOICE'
-            const isGraded = answer.isGraded || answer.is_graded
+            const isGraded = answer.isGraded
 
             return (
               <Card key={answer.id}>
@@ -463,9 +467,10 @@ export default function GradeAttemptPage() {
                                 if (result.incorrectNotes > 0 && result.details) {
                                   const errorTypes = result.details
                                     .filter(d => !d.isCorrect && d.errorType)
-                                    .map(d => d.errorType)
-                                    .reduce((acc: Record<string, number>, type) => {
-                                      acc[type] = (acc[type] || 0) + 1
+                                    .reduce((acc: Record<string, number>, d) => {
+                                      if (d.errorType) {
+                                        acc[d.errorType] = (acc[d.errorType] || 0) + 1
+                                      }
                                       return acc
                                     }, {})
                                   
@@ -491,7 +496,7 @@ export default function GradeAttemptPage() {
                             />
                           </div>
                         </>
-                      ) : (answer.submissionFilePath || answer.submission_file_path) ? (
+                      ) : answer.submissionFilePath ? (
                         <div className="space-y-3">
                           <div className="flex items-center space-x-3">
                             <FileMusic className="h-8 w-8 text-blue-600" />
@@ -502,7 +507,11 @@ export default function GradeAttemptPage() {
                                 className="p-0 h-auto"
                                 onClick={async () => {
                                   try {
-                                    const filePath = answer.submissionFilePath || answer.submission_file_path
+                                    const filePath = answer.submissionFilePath
+                                    if (!filePath) {
+                                      alert('No submission file available')
+                                      return
+                                    }
                                     const response = await api.getSubmissionUrl(filePath)
                                     window.open(response.data.url, '_blank')
                                   } catch (err) {

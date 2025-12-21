@@ -81,7 +81,7 @@ export default function SectionQuestionsPage() {
           <div className="mb-6">
             <QuestionEditor
               sectionId={sectionId}
-              sectionType={(section.section_type || section.sectionType) as any}
+              sectionType={section.sectionType}
               onSaved={() => {
                 setShowAddQuestion(false)
                 loadSection()
@@ -110,7 +110,7 @@ export default function SectionQuestionsPage() {
                 question={question}
                 index={index}
                 sectionId={sectionId}
-                sectionType={(section?.section_type || section?.sectionType) as any}
+                sectionType={section?.sectionType}
                 onUpdated={loadSection}
                 onDeleted={loadSection}
               />

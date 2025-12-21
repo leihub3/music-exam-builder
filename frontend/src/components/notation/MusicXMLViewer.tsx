@@ -183,7 +183,7 @@ export function MusicXMLViewer({
       }
       
       // Check the score-part for transposition info
-      const scorePartId = part.getAttribute('id')
+      const scorePartId = part instanceof Element ? part.getAttribute('id') : null
       if (scorePartId) {
         const scorePartEl = xmlDoc.querySelector(`score-part[id="${scorePartId}"]`)
         if (scorePartEl) {

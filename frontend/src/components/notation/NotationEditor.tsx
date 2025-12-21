@@ -1102,7 +1102,7 @@ export function NotationEditor({
       const isFirstMeasureOfLine = staveIndex % measuresPerLine === 0
       
       // Convert notes to VexFlow format
-      const staveNotes = measureNotes.map((note, index) => {
+      const staveNotes = measureNotes.map((note: Note, index: number) => {
       // Handle rests - VexFlow uses StaveNote with rest flag
       if (note.isRest || note.pitch === 'rest') {
         const rest = new StaveNote({
@@ -1197,9 +1197,9 @@ export function NotationEditor({
           if (dragPreviewPitch && dragPreviewPitch !== note.pitch) {
             // Note: We can't easily preview the new position visually without re-rendering
             // But we can show the note is being dragged
-            staveNote.setStyle({ fillStyle: '#10b981', strokeStyle: '#10b981', fillOpacity: 0.7 })
+            staveNote.setStyle({ fillStyle: '#10b981', strokeStyle: '#10b981' })
           } else {
-            staveNote.setStyle({ fillStyle: '#10b981', strokeStyle: '#10b981', fillOpacity: 0.7 })
+            staveNote.setStyle({ fillStyle: '#10b981', strokeStyle: '#10b981' })
           }
         } else {
           staveNote.setStyle({ fillStyle: '#f59e0b', strokeStyle: '#f59e0b' })
@@ -1223,7 +1223,7 @@ export function NotationEditor({
         '16': 0.25 // sixteenth note = 0.25 beats
       }
 
-      const totalBeats = measureNotes.reduce((sum, note) => {
+      const totalBeats = measureNotes.reduce((sum: number, note: Note) => {
         return sum + (durationMap[note.duration] || 1)
       }, 0)
       
@@ -1278,7 +1278,7 @@ export function NotationEditor({
         const formatterWidth = Math.max(150, actualMeasureWidth - clefKeyTimeWidth - padding)
         
         // Clear any existing beams before formatting
-        staveNotes.forEach((note) => {
+        staveNotes.forEach((note: any) => {
           try {
             const beams = (note as any).getBeams?.() || []
             beams.forEach((beam: any) => {
@@ -1318,7 +1318,7 @@ export function NotationEditor({
         const notesInBeams = new Set<any>() // Track notes that will be in beams
         let cumulativeBeat = 0
         
-        staveNotes.forEach((staveNote, index) => {
+        staveNotes.forEach((staveNote: any, index: number) => {
           const note = measureNotes[index]
           const duration = (staveNote as any).duration || 'q'
           const isRest = (note?.isRest || note?.pitch === 'rest') || false
@@ -1415,7 +1415,7 @@ export function NotationEditor({
         
         // Draw notes individually (like the example) instead of using voice.draw()
         // This prevents VexFlow from drawing automatic beams
-        staveNotes.forEach((note) => {
+        staveNotes.forEach((note: any) => {
           try {
             // Hide stem if note is in a beam
             if (notesInBeams.has(note)) {
@@ -1457,7 +1457,7 @@ export function NotationEditor({
         // Store note positions for click detection in Select mode
         // Use bounding box after formatter has positioned notes
         // IMPORTANT: Calculate positions AFTER voice.draw() to ensure accurate coordinates
-        staveNotes.forEach((staveNote, index) => {
+        staveNotes.forEach((staveNote: any, index: number) => {
           const note = measureNotes[index]
           if (!note || note.isRest) return
           
@@ -1568,7 +1568,7 @@ export function NotationEditor({
             
             const noteYPos = staveYPos + 60 + (linePosition * 10)
             const measureIndexInLine = measureIndex % measuresPerLine
-            const measureXPos = 10 + (measureIndexInLine * measureWidth)
+            const measureXPos = 10 + (measureIndexInLine * baseMeasureWidth)
             const noteIndexInMeasure = notes.filter(n => (n.measure || 0) === measureIndex).indexOf(note)
             const noteXPos = measureXPos + 50 + (noteIndexInMeasure * 40)
             
@@ -1582,10 +1582,10 @@ export function NotationEditor({
         })
         
         // Draw ties (ligaduras de unión) - connect notes with same pitch
-        const { Tie } = Vex.Flow
+        const { Tie } = Vex.Flow as any
         const tieGroups = new Map<string, { start: any; end: any }>()
         
-        staveNotes.forEach((staveNote, index) => {
+        staveNotes.forEach((staveNote: any, index: number) => {
           const note = measureNotes[index]
           if (!note || note.isRest) return
           
@@ -1625,7 +1625,7 @@ export function NotationEditor({
         // Draw slurs (ligaduras de expresión) - connect different pitches
         const slurGroups = new Map<string, { start: any; end: any }>()
         
-        staveNotes.forEach((staveNote, index) => {
+        staveNotes.forEach((staveNote: any, index: number) => {
           const note = measureNotes[index]
           if (!note || note.isRest) return
           

@@ -107,21 +107,21 @@ export default function PreviewExamPage() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-4 text-sm text-gray-600">
-              {exam.duration_minutes && (
+              {exam.durationMinutes && (
                 <div className="flex items-center space-x-2">
                   <Clock className="h-4 w-4" />
-                  <span>{formatTime(exam.duration_minutes)}</span>
+                  <span>{formatTime(exam.durationMinutes)}</span>
                 </div>
               )}
-              {exam.total_points > 0 && (
+              {exam.totalPoints > 0 && (
                 <div className="flex items-center space-x-2">
                   <FileText className="h-4 w-4" />
-                  <span>{exam.total_points} points</span>
+                  <span>{exam.totalPoints} points</span>
                 </div>
               )}
-              {exam.passing_score && (
+              {exam.passingScore && (
                 <div>
-                  <span>Passing: {exam.passing_score}%</span>
+                  <span>Passing: {exam.passingScore}%</span>
                 </div>
               )}
               <div>
@@ -144,10 +144,10 @@ export default function PreviewExamPage() {
         ) : (
           <div className="space-y-8">
             {sections
-              .sort((a, b) => (a.order_index || a.orderIndex || 0) - (b.order_index || b.orderIndex || 0))
+              .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
               .map((section, sectionIndex) => {
                 const sectionQuestions = section.questions || []
-                const sectionType = section.section_type || section.sectionType
+                const sectionType = section.sectionType
 
                 return (
                   <div key={section.id} className="space-y-4">
@@ -180,7 +180,7 @@ export default function PreviewExamPage() {
                     ) : (
                       <div className="space-y-4">
                         {sectionQuestions
-                          .sort((a, b) => (a.order_index || a.orderIndex || 0) - (b.order_index || b.orderIndex || 0))
+                          .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
                           .map((question, questionIndex) => {
                             const globalIndex = questions.findIndex(q => q.id === question.id) + 1
 

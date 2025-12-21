@@ -181,7 +181,7 @@ function alignNotes(expected: NoteData[], actual: NoteData[], tolerance: number 
   // Match expected notes with actual notes
   expected.forEach((expNote) => {
     // Find closest actual note within tolerance
-    let bestMatch: { index: number; note: NoteData; distance: number } | null = null
+    let bestMatch: { index: number; note: NoteData; distance: number } | null | undefined = null
     
     actual.forEach((actNote, index) => {
       if (usedActualIndices.has(index)) return
@@ -195,10 +195,11 @@ function alignNotes(expected: NoteData[], actual: NoteData[], tolerance: number 
     })
     
     if (bestMatch) {
-      usedActualIndices.add(bestMatch.index)
-      const isCorrect = compareNotes(expNote, bestMatch.note)
+      const match = bestMatch as { index: number; note: NoteData; distance: number }
+      usedActualIndices.add(match.index)
+      const isCorrect = compareNotes(expNote, match.note)
       const expectedMIDI = noteToMIDI(expNote.step, expNote.octave, expNote.alter || 0)
-      const actualMIDI = noteToMIDI(bestMatch.note.step, bestMatch.note.octave, bestMatch.note.alter || 0)
+      const actualMIDI = noteToMIDI(match.note.step, match.note.octave, match.note.alter || 0)
       
       let errorType: 'pitch' | 'duration' | 'accidental' | 'missing' | 'extra' | undefined
       if (!isCorrect) {
@@ -212,7 +213,7 @@ function alignNotes(expected: NoteData[], actual: NoteData[], tolerance: number 
       comparisons.push({
         position: expNote.position,
         expected: expNote,
-        actual: bestMatch.note,
+        actual: match.note,
         isCorrect,
         errorType,
         expectedMIDI,

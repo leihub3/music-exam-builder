@@ -42,7 +42,7 @@ export default function EditExamPage() {
     if (!exam) return
 
     try {
-      await api.publishExam(examId, !exam.is_published)
+      await api.publishExam(examId, !exam.isPublished)
       await loadExam()
     } catch (err: any) {
       console.error('Error publishing exam:', err)
@@ -103,7 +103,7 @@ export default function EditExamPage() {
                 <Eye className="h-4 w-4 mr-2" />
                 Preview
               </Button>
-              {exam.is_published && (
+              {exam.isPublished && (
                 <Button
                   variant="outline"
                   onClick={() => setAssignDialogOpen(true)}
@@ -113,10 +113,10 @@ export default function EditExamPage() {
                 </Button>
               )}
               <Button
-                variant={exam.is_published ? 'outline' : 'default'}
+                variant={exam.isPublished ? 'outline' : 'default'}
                 onClick={handlePublish}
               >
-                {exam.is_published ? 'Unpublish' : 'Publish'}
+                {exam.isPublished ? 'Unpublish' : 'Publish'}
               </Button>
               <Button variant="destructive" onClick={handleDeleteExam}>
                 <Trash2 className="h-4 w-4 mr-2" />
@@ -139,17 +139,17 @@ export default function EditExamPage() {
               )}
             </div>
             <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              exam.is_published 
+              exam.isPublished 
                 ? 'bg-green-100 text-green-800' 
                 : 'bg-gray-100 text-gray-800'
             }`}>
-              {exam.is_published ? 'Published' : 'Draft'}
+              {exam.isPublished ? 'Published' : 'Draft'}
             </span>
           </div>
           <div className="text-sm text-gray-600">
-            {exam.duration_minutes && <span>{exam.duration_minutes} minutes • </span>}
-            {exam.total_points > 0 && <span>{exam.total_points} points</span>}
-            {exam.passing_score && <span> • Passing: {exam.passing_score}%</span>}
+            {exam.durationMinutes && <span>{exam.durationMinutes} minutes • </span>}
+            {exam.totalPoints > 0 && <span>{exam.totalPoints} points</span>}
+            {exam.passingScore && <span> • Passing: {exam.passingScore}%</span>}
           </div>
         </div>
 
@@ -191,7 +191,7 @@ export default function EditExamPage() {
           {exam.sections && exam.sections.length > 0 && (
             <div className="space-y-4">
               {exam.sections
-                .sort((a, b) => (a.order_index || a.orderIndex || 0) - (b.order_index || b.orderIndex || 0))
+                .sort((a, b) => (a.orderIndex || 0) - (b.orderIndex || 0))
                 .map((section) => (
                   <SectionCard
                     key={section.id}
@@ -261,7 +261,7 @@ function SectionCard({
             </CardDescription>
           </div>
           <span className="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">
-            {section.section_type?.replace('_', ' ') || section.sectionType?.replace('_', ' ')}
+            {section.sectionType?.replace(/_/g, ' ')}
           </span>
         </div>
       </CardHeader>

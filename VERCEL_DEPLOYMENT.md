@@ -11,18 +11,26 @@ The frontend (Next.js app) is ready to deploy to Vercel.
 1. **Connect your repository to Vercel**
    - Go to [vercel.com](https://vercel.com)
    - Import your Git repository
-   - **Important**: In Project Settings > General, set the **Root Directory** to `frontend`
-   - Vercel will auto-detect the Next.js framework
 
-2. **Configure Environment Variables**
+2. **Configure Build Settings (CRITICAL)**
+   - Go to **Project Settings** → **General** → **Build & Development Settings**
+   - Set the **Root Directory** to `frontend` (this tells Vercel to build from the frontend folder)
+   - **IMPORTANT**: Enable **"Include files outside of the Root Directory in the Build Step"** checkbox
+     - This is required because your `frontend` depends on the `shared` package which is outside the frontend folder
+   - Verify Build Command is set to `npm run build` (or leave as auto-detected)
+   - Verify Output Directory is `.next` (or leave as auto-detected)
+   - Save the changes
+
+3. **Configure Environment Variables**
    In the Vercel dashboard, add these environment variables:
    - `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
    - `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anonymous key
    - `NEXT_PUBLIC_API_URL` - Your backend API URL (e.g., `https://your-backend.vercel.app` or wherever your backend is hosted)
 
-3. **Deploy**
-   - Vercel will automatically build and deploy on every push to your main branch
-   - Make sure the Root Directory is set to `frontend` in Project Settings
+4. **Deploy**
+   - Trigger a new deployment (or push to your main branch)
+   - Vercel will automatically build and deploy on every push
+   - Check the build logs to ensure it's building from the `frontend` directory
 
 ## Backend Deployment
 
@@ -55,7 +63,21 @@ Vercel will:
 
 ## Troubleshooting
 
-- **Build fails with shared package**: Ensure the `shared` directory is committed to Git
-- **Environment variables not working**: Make sure all `NEXT_PUBLIC_*` variables are set in Vercel dashboard
-- **API calls failing**: Verify `NEXT_PUBLIC_API_URL` points to your deployed backend
+- **404 Error / NOT_FOUND**: 
+  - Verify **Root Directory** is set to `frontend` in Project Settings → Build & Development Settings
+  - Ensure **"Include files outside of the Root Directory"** is enabled
+  - Check deployment logs to see if the build is running from the correct directory
+
+- **Build fails with shared package**: 
+  - Ensure the `shared` directory is committed to Git
+  - Enable **"Include files outside of the Root Directory in the Build Step"** in Project Settings
+  - Check build logs for module resolution errors
+
+- **Environment variables not working**: 
+  - Make sure all `NEXT_PUBLIC_*` variables are set in Vercel dashboard (Settings → Environment Variables)
+  - Restart the deployment after adding new environment variables
+
+- **API calls failing**: 
+  - Verify `NEXT_PUBLIC_API_URL` points to your deployed backend
+  - Check browser console for CORS or connection errors
 

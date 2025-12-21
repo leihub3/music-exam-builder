@@ -35,9 +35,10 @@ export default function TakeExamPage() {
   useEffect(() => {
     if (!exam?.durationMinutes) return
 
+    const durationMinutes = exam.durationMinutes
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - timeStarted.getTime()) / 1000)
-      const total = exam.durationMinutes * 60
+      const total = durationMinutes * 60
       const remaining = Math.max(0, total - elapsed)
       
       setTimeRemaining(remaining)
@@ -230,7 +231,7 @@ export default function TakeExamPage() {
               {exam.sections?.map(section => {
                 if (!section.questions?.some(q => q.id === currentQuestion.id)) return null
                 
-                const sectionType = section.section_type || section.sectionType
+                const sectionType = section.sectionType
                 
                 // Hide question text for TRANSPOSITION and ORCHESTRATION questions
                 // as they have their own instruction displays
