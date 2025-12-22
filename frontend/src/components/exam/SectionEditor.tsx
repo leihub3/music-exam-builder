@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import type { SectionType } from '@music-exam-builder/shared/types'
+import type { SectionType, SectionCategory } from '@music-exam-builder/shared/types'
 
 interface SectionEditorProps {
   examId: string
@@ -14,27 +14,59 @@ interface SectionEditorProps {
   onCancel: () => void
 }
 
-const SECTION_TYPES: { value: SectionType; label: string; description: string }[] = [
-  { value: 'TRUE_FALSE', label: 'True/False', description: 'Simple true or false questions' },
-  { value: 'MULTIPLE_CHOICE', label: 'Multiple Choice', description: 'Questions with multiple options' },
-  { value: 'LISTENING', label: 'Listening', description: 'Audio-based questions' },
-  { value: 'TRANSPOSITION', label: 'Transposition', description: 'Transpose music for different instruments' },
-  { value: 'ORCHESTRATION', label: 'Orchestration', description: 'Orchestrate piano scores for ensembles' },
+const SECTION_CATEGORIES: { value: SectionCategory; label: string; description: string }[] = [
+  { value: 'EAR_TRAINING', label: 'Ear Training', description: 'Melodic exercises' },
+  { value: 'RHYTHM', label: 'Rhythm', description: 'Rhythmic exercises' },
+  { value: 'GENERAL', label: 'General', description: 'General questions' },
 ]
+
+const EXERCISE_TYPES: Record<SectionCategory, { value: SectionType; label: string; description: string }[]> = {
+  EAR_TRAINING: [
+    { value: 'LISTEN_AND_WRITE', label: 'Listen and Write', description: 'Listen and write the melody' },
+    { value: 'LISTEN_AND_REPEAT', label: 'Listen and Repeat', description: 'Listen and repeat (note names)' },
+    { value: 'MULTIPLE_CHOICE', label: 'Multiple Choice', description: 'Multiple choice questions' },
+    { value: 'TRUE_FALSE', label: 'True/False', description: 'True or false questions' },
+    { value: 'LISTEN_AND_COMPLETE', label: 'Listen and Complete', description: 'Listen and complete the melody' },
+  ],
+  RHYTHM: [
+    { value: 'LISTEN_AND_WRITE', label: 'Listen and Write', description: 'Listen and write the rhythm' },
+    { value: 'LISTEN_AND_REPEAT', label: 'Listen and Repeat', description: 'Listen and repeat (rhythm)' },
+    { value: 'MULTIPLE_CHOICE', label: 'Multiple Choice', description: 'Multiple choice questions' },
+    { value: 'TRUE_FALSE', label: 'True/False', description: 'True or false questions' },
+    { value: 'LISTEN_AND_COMPLETE', label: 'Listen and Complete', description: 'Listen and complete the rhythm' },
+  ],
+  GENERAL: [
+    { value: 'TRUE_FALSE', label: 'True/False', description: 'Simple true or false questions' },
+    { value: 'MULTIPLE_CHOICE', label: 'Multiple Choice', description: 'Questions with multiple options' },
+    { value: 'LISTENING', label: 'Listening', description: 'Audio-based questions' },
+    { value: 'TRANSPOSITION', label: 'Transposition', description: 'Transpose music for different instruments' },
+    { value: 'ORCHESTRATION', label: 'Orchestration', description: 'Orchestrate piano scores for ensembles' },
+  ],
+}
 
 export function SectionEditor({ examId, onSaved, onCancel }: SectionEditorProps) {
   const [loading, setLoading] = useState(false)
   const [formData, setFormData] = useState({
     title: '',
     description: '',
+    sectionCategory: '' as SectionCategory | '',
     sectionType: '' as SectionType | '',
   })
+
+  const availableExercises = formData.sectionCategory 
+    ? EXERCISE_TYPES[formData.sectionCategory] || []
+    : []
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     
+    if (!formData.sectionCategory) {
+      alert('Please select a section category')
+      return
+    }
+
     if (!formData.sectionType) {
-      alert('Please select a section type')
+      alert('Please select an exercise type')
       return
     }
 
@@ -49,6 +81,7 @@ export function SectionEditor({ examId, onSaved, onCancel }: SectionEditorProps)
       const sectionData = {
         title: formData.title,
         description: formData.description,
+        sectionCategory: formData.sectionCategory,
         sectionType: formData.sectionType,
         orderIndex,
       }
@@ -95,34 +128,72 @@ export function SectionEditor({ examId, onSaved, onCancel }: SectionEditorProps)
           </div>
 
           <div className="space-y-2">
-            <Label>Section Type *</Label>
+            <Label>Section Category *</Label>
             <div className="grid gap-3">
-              {SECTION_TYPES.map((type) => (
+              {SECTION_CATEGORIES.map((category) => (
                 <label
-                  key={type.value}
+                  key={category.value}
                   className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
-                    formData.sectionType === type.value
+                    formData.sectionCategory === category.value
                       ? 'border-blue-500 bg-blue-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <input
                     type="radio"
-                    name="sectionType"
-                    value={type.value}
-                    checked={formData.sectionType === type.value}
-                    onChange={(e) => setFormData({ ...formData, sectionType: e.target.value as SectionType })}
+                    name="sectionCategory"
+                    value={category.value}
+                    checked={formData.sectionCategory === category.value}
+                    onChange={(e) => {
+                      setFormData({ 
+                        ...formData, 
+                        sectionCategory: e.target.value as SectionCategory,
+                        sectionType: '' // Reset exercise type when category changes
+                      })
+                    }}
                     className="mt-1"
                     disabled={loading}
                   />
                   <div className="flex-1">
-                    <div className="font-medium">{type.label}</div>
-                    <div className="text-sm text-gray-600">{type.description}</div>
+                    <div className="font-medium">{category.label}</div>
+                    <div className="text-sm text-gray-600">{category.description}</div>
                   </div>
                 </label>
               ))}
             </div>
           </div>
+
+          {formData.sectionCategory && (
+            <div className="space-y-2">
+              <Label>Exercise Type *</Label>
+              <div className="grid gap-3">
+                {availableExercises.map((exercise) => (
+                  <label
+                    key={exercise.value}
+                    className={`flex items-start space-x-3 p-4 border-2 rounded-lg cursor-pointer transition-colors ${
+                      formData.sectionType === exercise.value
+                        ? 'border-blue-500 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="sectionType"
+                      value={exercise.value}
+                      checked={formData.sectionType === exercise.value}
+                      onChange={(e) => setFormData({ ...formData, sectionType: e.target.value as SectionType })}
+                      className="mt-1"
+                      disabled={loading}
+                    />
+                    <div className="flex-1">
+                      <div className="font-medium">{exercise.label}</div>
+                      <div className="text-sm text-gray-600">{exercise.description}</div>
+                    </div>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-end space-x-2 pt-4">
             <Button type="button" variant="outline" onClick={onCancel} disabled={loading}>

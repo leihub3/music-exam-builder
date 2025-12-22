@@ -410,6 +410,90 @@ export default function PreviewExamPage() {
                                         })()}
                                       </div>
                                     )}
+
+                                    {sectionType === 'LISTEN_AND_WRITE' && (
+                                      <div className="space-y-2">
+                                        <p className="text-sm font-medium text-gray-700">Answer Type: Listen and Write</p>
+                                        {(() => {
+                                          const lawData = Array.isArray((question as any).listen_and_write)
+                                            ? (question as any).listen_and_write[0]
+                                            : (question as any).listen_and_write;
+                                          return lawData && (
+                                            <div className="space-y-2 text-sm">
+                                              {lawData.audio_file_path && (
+                                                <p className="text-gray-600">
+                                                  Audio file available. Students will listen and write what they hear.
+                                                </p>
+                                              )}
+                                              {lawData.answer_format && (
+                                                <p>
+                                                  <span className="font-medium">Answer Format:</span>{' '}
+                                                  {lawData.answer_format === 'notes' ? 'Note Names' : 'Free Text'}
+                                                </p>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
+
+                                    {sectionType === 'LISTEN_AND_REPEAT' && (
+                                      <div className="space-y-2">
+                                        <p className="text-sm font-medium text-gray-700">Answer Type: Listen and Repeat</p>
+                                        {(() => {
+                                          const larData = Array.isArray((question as any).listen_and_repeat)
+                                            ? (question as any).listen_and_repeat[0]
+                                            : (question as any).listen_and_repeat;
+                                          return larData && (
+                                            <div className="space-y-2 text-sm">
+                                              {larData.audio_file_path && (
+                                                <p className="text-gray-600">
+                                                  Audio file available. Students will repeat the sequence of notes.
+                                                </p>
+                                              )}
+                                              {larData.note_format && (
+                                                <p>
+                                                  <span className="font-medium">Note Format:</span>{' '}
+                                                  {larData.note_format === 'solfege' ? 'Solfege (do, re, mi)' : 
+                                                   larData.note_format === 'note_names' ? 'Note Names (C, D, E)' : 'Both'}
+                                                </p>
+                                              )}
+                                              {larData.expected_notes && Array.isArray(larData.expected_notes) && larData.expected_notes.length > 0 && (
+                                                <p>
+                                                  <span className="font-medium">Expected Sequence:</span>{' '}
+                                                  {larData.expected_notes.join(' → ')}
+                                                </p>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
+
+                                    {sectionType === 'LISTEN_AND_COMPLETE' && (
+                                      <div className="space-y-2">
+                                        <p className="text-sm font-medium text-gray-700">Answer Type: Listen and Complete</p>
+                                        {(() => {
+                                          const lacData = Array.isArray((question as any).listen_and_complete)
+                                            ? (question as any).listen_and_complete[0]
+                                            : (question as any).listen_and_complete;
+                                          return lacData && (
+                                            <div className="space-y-2 text-sm">
+                                              {lacData.audio_file_path && (
+                                                <p className="text-gray-600">
+                                                  Audio file available. Students will listen and complete the blanks.
+                                                </p>
+                                              )}
+                                              {lacData.incomplete_score_path && (
+                                                <p className="text-gray-600">
+                                                  Incomplete score available for students to reference.
+                                                </p>
+                                              )}
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
                                   </div>
                                 </CardContent>
                               </Card>

@@ -15,17 +15,20 @@ class ApiClient {
     // Add auth interceptor
     this.client.interceptors.request.use(async (config) => {
       try {
+        // Wait for session to be available
         const { data: { session }, error } = await supabase.auth.getSession()
         
         if (error) {
-          console.error('Error getting session:', error)
+          console.error('Error getting session in interceptor:', error)
+          // Don't block the request, let the server handle auth errors
           return config
         }
         
         if (session?.access_token) {
           config.headers.Authorization = `Bearer ${session.access_token}`
+          console.log('Auth token added to request:', config.url)
         } else {
-          console.warn('No access token in session')
+          console.warn('No access token in session for request:', config.url)
         }
       } catch (err) {
         console.error('Error in auth interceptor:', err)

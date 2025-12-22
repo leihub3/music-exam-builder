@@ -38,12 +38,17 @@ export interface InstitutionMember {
 // EXAM TYPES
 // =====================
 
+export type SectionCategory = 'EAR_TRAINING' | 'RHYTHM' | 'GENERAL';
+
 export type SectionType = 
   | 'TRUE_FALSE' 
   | 'MULTIPLE_CHOICE' 
   | 'LISTENING' 
   | 'TRANSPOSITION' 
-  | 'ORCHESTRATION';
+  | 'ORCHESTRATION'
+  | 'LISTEN_AND_WRITE'
+  | 'LISTEN_AND_REPEAT'
+  | 'LISTEN_AND_COMPLETE';
 
 export interface Exam {
   id: string;
@@ -69,6 +74,7 @@ export interface ExamSection {
   description?: string;
   orderIndex: number;
   sectionType: SectionType;
+  sectionCategory?: SectionCategory;
   createdAt: string;
   questions?: Question[];
 }
@@ -94,7 +100,10 @@ export type QuestionTypeData =
   | MultipleChoiceQuestionData
   | ListeningQuestionData
   | TranspositionQuestionData
-  | OrchestrationQuestionData;
+  | OrchestrationQuestionData
+  | ListenAndWriteQuestionData
+  | ListenAndRepeatQuestionData
+  | ListenAndCompleteQuestionData;
 
 export interface TrueFalseQuestionData {
   questionId: string;
@@ -129,6 +138,29 @@ export interface OrchestrationQuestionData {
   targetEnsemble: string;
   ensembleInstruments: string[];
   rubric: RubricItem[];
+}
+
+export interface ListenAndWriteQuestionData {
+  questionId: string;
+  audioFilePath: string;
+  correctAnswer: string;
+  answerFormat?: 'notes' | 'text';
+}
+
+export interface ListenAndRepeatQuestionData {
+  questionId: string;
+  audioFilePath: string;
+  expectedNotes: string[];
+  noteFormat?: 'solfege' | 'note_names' | 'both';
+  tolerance?: 'strict' | 'flexible';
+}
+
+export interface ListenAndCompleteQuestionData {
+  questionId: string;
+  audioFilePath: string;
+  incompleteScorePath?: string;
+  correctAnswer: string | string[];
+  blankPositions?: number[];
 }
 
 export interface RubricItem {
@@ -221,6 +253,7 @@ export interface CreateSectionDTO {
   title: string;
   description?: string;
   sectionType: SectionType;
+  sectionCategory?: SectionCategory;
   orderIndex: number;
 }
 

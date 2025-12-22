@@ -530,6 +530,19 @@ export default function GradeAttemptPage() {
                         </p>
                       ) : sectionType === 'MULTIPLE_CHOICE' ? (
                         <p className="font-medium">{answer.answer?.selectedOption}</p>
+                      ) : sectionType === 'LISTEN_AND_WRITE' || sectionType === 'LISTEN_AND_COMPLETE' ? (
+                        <p className="font-medium">{answer.answer?.answer || 'No answer provided'}</p>
+                      ) : sectionType === 'LISTEN_AND_REPEAT' ? (
+                        <div>
+                          <p className="font-medium">
+                            {answer.answer?.notes ? answer.answer.notes.join(' → ') : 'No answer provided'}
+                          </p>
+                          {answer.answer?.answer && (
+                            <p className="text-sm text-gray-600 mt-1">
+                              (as string: {answer.answer.answer})
+                            </p>
+                          )}
+                        </div>
                       ) : (
                         <p className="font-medium">{answer.answer?.answer || 'No answer provided'}</p>
                       )}

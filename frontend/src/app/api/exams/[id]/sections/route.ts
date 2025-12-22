@@ -14,12 +14,17 @@ export async function POST(
     const sectionData = await request.json()
 
     // Convert camelCase to snake_case
-    const dbData = {
+    const dbData: any = {
       exam_id: examId,
       title: sectionData.title,
       description: sectionData.description || null,
       section_type: sectionData.sectionType,
       order_index: sectionData.orderIndex
+    }
+
+    // Add section_category if provided
+    if (sectionData.sectionCategory) {
+      dbData.section_category = sectionData.sectionCategory
     }
 
     const section = await examService.createSection(dbData)
@@ -51,4 +56,6 @@ export async function POST(
     )
   }
 }
+
+
 

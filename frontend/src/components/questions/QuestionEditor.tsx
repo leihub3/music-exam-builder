@@ -11,6 +11,9 @@ import { MultipleChoiceEditor } from './MultipleChoiceEditor'
 import { ListeningEditor } from './ListeningEditor'
 import { TranspositionEditor } from './TranspositionEditor'
 import { OrchestrationEditor } from './OrchestrationEditor'
+import { ListenAndWriteEditor } from './ListenAndWriteEditor'
+import { ListenAndRepeatEditor } from './ListenAndRepeatEditor'
+import { ListenAndCompleteEditor } from './ListenAndCompleteEditor'
 import type { SectionType } from '@music-exam-builder/shared/types'
 
 interface QuestionEditorProps {
@@ -46,6 +49,12 @@ export function QuestionEditor({
         return { sourceInstrument: '', targetInstrument: '', notationFilePath: '' }
       case 'ORCHESTRATION':
         return { pianoScorePath: '', targetEnsemble: '', ensembleInstruments: [], rubric: [] }
+      case 'LISTEN_AND_WRITE':
+        return { audioFilePath: '', correctAnswer: '', answerFormat: 'notes' }
+      case 'LISTEN_AND_REPEAT':
+        return { audioFilePath: '', expectedNotes: [''], noteFormat: 'solfege', tolerance: 'strict' }
+      case 'LISTEN_AND_COMPLETE':
+        return { audioFilePath: '', correctAnswer: '', blankPositions: undefined }
       default:
         return {}
     }
@@ -135,6 +144,35 @@ export function QuestionEditor({
             targetEnsemble: or.target_ensemble || '',
             ensembleInstruments: Array.isArray(or.ensemble_instruments) ? or.ensemble_instruments : (or.ensemble_instruments || []),
             rubric: Array.isArray(or.rubric) ? or.rubric : (or.rubric || [])
+          }
+        }
+      } else if (questionAny.listen_and_write) {
+        const law = getFirstItem(questionAny.listen_and_write)
+        if (law) {
+          loadedTypeData = {
+            audioFilePath: law.audio_file_path || '',
+            correctAnswer: law.correct_answer || '',
+            answerFormat: law.answer_format || 'notes'
+          }
+        }
+      } else if (questionAny.listen_and_repeat) {
+        const lar = getFirstItem(questionAny.listen_and_repeat)
+        if (lar) {
+          loadedTypeData = {
+            audioFilePath: lar.audio_file_path || '',
+            expectedNotes: Array.isArray(lar.expected_notes) ? lar.expected_notes : (lar.expected_notes || ['']),
+            noteFormat: lar.note_format || 'solfege',
+            tolerance: lar.tolerance || 'strict'
+          }
+        }
+      } else if (questionAny.listen_and_complete) {
+        const lac = getFirstItem(questionAny.listen_and_complete)
+        if (lac) {
+          loadedTypeData = {
+            audioFilePath: lac.audio_file_path || '',
+            incompleteScorePath: lac.incomplete_score_path || '',
+            correctAnswer: lac.correct_answer || '',
+            blankPositions: Array.isArray(lac.blank_positions) ? lac.blank_positions : undefined
           }
         }
       }
@@ -251,6 +289,15 @@ export function QuestionEditor({
             )}
             {sectionType === 'ORCHESTRATION' && (
               <OrchestrationEditor value={typeData} onChange={setTypeData} />
+            )}
+            {sectionType === 'LISTEN_AND_WRITE' && (
+              <ListenAndWriteEditor value={typeData} onChange={setTypeData} />
+            )}
+            {sectionType === 'LISTEN_AND_REPEAT' && (
+              <ListenAndRepeatEditor value={typeData} onChange={setTypeData} />
+            )}
+            {sectionType === 'LISTEN_AND_COMPLETE' && (
+              <ListenAndCompleteEditor value={typeData} onChange={setTypeData} />
             )}
           </div>
 

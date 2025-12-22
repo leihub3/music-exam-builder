@@ -41,7 +41,10 @@ class ExamService {
             multiple_choice:multiple_choice_questions(*),
             listening:listening_questions(*),
             transposition:transposition_questions(*),
-            orchestration:orchestration_questions(*)
+            orchestration:orchestration_questions(*),
+            listen_and_write:listen_and_write_questions(*),
+            listen_and_repeat:listen_and_repeat_questions(*),
+            listen_and_complete:listen_and_complete_questions(*)
           )
         )
       `)
@@ -157,15 +160,22 @@ class ExamService {
    * Create exam section
    */
   async createSection(sectionData: any) {
+    const insertData: any = {
+      exam_id: sectionData.exam_id,
+      title: sectionData.title,
+      description: sectionData.description,
+      section_type: sectionData.section_type,
+      order_index: sectionData.order_index
+    }
+
+    // Add section_category if provided
+    if (sectionData.section_category) {
+      insertData.section_category = sectionData.section_category
+    }
+
     const { data, error } = await supabaseAdmin
       .from('exam_sections')
-      .insert({
-        exam_id: sectionData.exam_id,
-        title: sectionData.title,
-        description: sectionData.description,
-        section_type: sectionData.section_type,
-        order_index: sectionData.order_index
-      })
+      .insert(insertData)
       .select()
       .single()
 
@@ -215,7 +225,10 @@ class ExamService {
           multiple_choice:multiple_choice_questions(*),
           listening:listening_questions(*),
           transposition:transposition_questions(*),
-          orchestration:orchestration_questions(*)
+          orchestration:orchestration_questions(*),
+          listen_and_write:listen_and_write_questions(*),
+          listen_and_repeat:listen_and_repeat_questions(*),
+          listen_and_complete:listen_and_complete_questions(*)
         )
       `)
       .eq('id', sectionId)
@@ -353,4 +366,6 @@ class ExamService {
 }
 
 export const examService = new ExamService()
+
+
 

@@ -24,16 +24,51 @@ export default function LoginPage() {
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
+        email: email.trim(),
         password,
       })
 
-      if (error) throw error
+      if (error) {
+        console.error('Login error:', error)
+        
+        // Provide user-friendly error messages
+        if (error.message.includes('Invalid login credentials') || error.message.includes('email')) {
+          setError('Invalid email or password. Please check your credentials and try again.')
+        } else if (error.message.includes('Email not confirmed')) {
+          setError('Please verify your email before logging in.')
+        } else {
+          setError(error.message || 'Failed to login. Please try again.')
+        }
+        return
+      }
 
+      if (!data.session) {
+        console.error('No session after login')
+        setError('Login failed: No session created. Please try again.')
+        return
+      }
+
+      console.log('Login successful, session:', data.session.access_token ? 'Token present' : 'No token')
+      console.log('Session expires at:', new Date(data.session.expires_at! * 1000).toISOString())
+      
+      // Verify session is accessible
+      const { data: { session: verifySession } } = await supabase.auth.getSession()
+      if (!verifySession) {
+        console.error('Session not accessible after login')
+        setError('Login failed: Session not stored. Please try again.')
+        return
+      }
+
+      // Small delay to ensure session is fully persisted
+      await new Promise(resolve => setTimeout(resolve, 100))
+
+      console.log('Redirecting to dashboard')
       // Redirect to dashboard - it will handle role-based routing
       router.push('/dashboard')
+      router.refresh() // Force a refresh to ensure session is picked up
     } catch (err: any) {
-      setError(err.message || 'Failed to login')
+      console.error('Login error details:', err)
+      setError(err.message || 'Failed to login. Please try again.')
     } finally {
       setLoading(false)
     }

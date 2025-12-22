@@ -11,6 +11,9 @@ import { MultipleChoiceAnswer } from '@/components/answers/MultipleChoiceAnswer'
 import { ListeningAnswer } from '@/components/answers/ListeningAnswer'
 import { TranspositionAnswer } from '@/components/answers/TranspositionAnswer'
 import { OrchestrationAnswer } from '@/components/answers/OrchestrationAnswer'
+import { ListenAndWriteAnswer } from '@/components/answers/ListenAndWriteAnswer'
+import { ListenAndRepeatAnswer } from '@/components/answers/ListenAndRepeatAnswer'
+import { ListenAndCompleteAnswer } from '@/components/answers/ListenAndCompleteAnswer'
 import type { Exam, ExamAttempt, Question } from '@music-exam-builder/shared/types'
 
 export default function TakeExamPage() {
@@ -274,6 +277,27 @@ export default function TakeExamPage() {
                     )}
                     {sectionType === 'ORCHESTRATION' && (
                       <OrchestrationAnswer
+                        question={currentQuestion}
+                        value={answers[currentQuestion.id]}
+                        onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
+                      />
+                    )}
+                    {sectionType === 'LISTEN_AND_WRITE' && (
+                      <ListenAndWriteAnswer
+                        question={currentQuestion}
+                        value={answers[currentQuestion.id]}
+                        onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
+                      />
+                    )}
+                    {sectionType === 'LISTEN_AND_REPEAT' && (
+                      <ListenAndRepeatAnswer
+                        question={currentQuestion}
+                        value={answers[currentQuestion.id]}
+                        onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
+                      />
+                    )}
+                    {sectionType === 'LISTEN_AND_COMPLETE' && (
+                      <ListenAndCompleteAnswer
                         question={currentQuestion}
                         value={answers[currentQuestion.id]}
                         onChange={(val) => handleAnswerChange(currentQuestion.id, val)}

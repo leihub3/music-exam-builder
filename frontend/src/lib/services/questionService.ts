@@ -111,6 +111,40 @@ class QuestionService {
         }
         break
 
+      case 'LISTEN_AND_WRITE':
+        typeTable = 'listen_and_write_questions'
+        typeRecord = {
+          question_id: question.id,
+          audio_file_path: typeData.audioFilePath,
+          correct_answer: typeData.correctAnswer,
+          answer_format: typeData.answerFormat || 'notes'
+        }
+        break
+
+      case 'LISTEN_AND_REPEAT':
+        typeTable = 'listen_and_repeat_questions'
+        typeRecord = {
+          question_id: question.id,
+          audio_file_path: typeData.audioFilePath,
+          expected_notes: typeData.expectedNotes || [],
+          note_format: typeData.noteFormat || 'solfege',
+          tolerance: typeData.tolerance || 'strict'
+        }
+        break
+
+      case 'LISTEN_AND_COMPLETE':
+        typeTable = 'listen_and_complete_questions'
+        typeRecord = {
+          question_id: question.id,
+          audio_file_path: typeData.audioFilePath,
+          incomplete_score_path: typeData.incompleteScorePath || null,
+          correct_answer: typeof typeData.correctAnswer === 'string' 
+            ? typeData.correctAnswer 
+            : JSON.stringify(typeData.correctAnswer),
+          blank_positions: typeData.blankPositions || null
+        }
+        break
+
       default:
         throw new Error(`Invalid question type: ${type}`)
     }
@@ -157,7 +191,10 @@ class QuestionService {
         multiple_choice:multiple_choice_questions(*),
         listening:listening_questions(*),
         transposition:transposition_questions(*),
-        orchestration:orchestration_questions(*)
+        orchestration:orchestration_questions(*),
+        listen_and_write:listen_and_write_questions(*),
+        listen_and_repeat:listen_and_repeat_questions(*),
+        listen_and_complete:listen_and_complete_questions(*)
       `)
       .eq('id', questionId)
       .single()
@@ -302,6 +339,40 @@ class QuestionService {
         }
         break
 
+      case 'LISTEN_AND_WRITE':
+        typeTable = 'listen_and_write_questions'
+        updateData = {
+          question_id: questionId,
+          audio_file_path: typeData.audioFilePath || null,
+          correct_answer: typeData.correctAnswer || '',
+          answer_format: typeData.answerFormat || 'notes'
+        }
+        break
+
+      case 'LISTEN_AND_REPEAT':
+        typeTable = 'listen_and_repeat_questions'
+        updateData = {
+          question_id: questionId,
+          audio_file_path: typeData.audioFilePath || null,
+          expected_notes: typeData.expectedNotes || [],
+          note_format: typeData.noteFormat || 'solfege',
+          tolerance: typeData.tolerance || 'strict'
+        }
+        break
+
+      case 'LISTEN_AND_COMPLETE':
+        typeTable = 'listen_and_complete_questions'
+        updateData = {
+          question_id: questionId,
+          audio_file_path: typeData.audioFilePath || null,
+          incomplete_score_path: typeData.incompleteScorePath || null,
+          correct_answer: typeof typeData.correctAnswer === 'string' 
+            ? typeData.correctAnswer 
+            : JSON.stringify(typeData.correctAnswer),
+          blank_positions: typeData.blankPositions || null
+        }
+        break
+
       default:
         throw new Error(`Invalid question type: ${type}`)
     }
@@ -413,7 +484,10 @@ class QuestionService {
         multiple_choice:multiple_choice_questions(*),
         listening:listening_questions(*),
         transposition:transposition_questions(*),
-        orchestration:orchestration_questions(*)
+        orchestration:orchestration_questions(*),
+        listen_and_write:listen_and_write_questions(*),
+        listen_and_repeat:listen_and_repeat_questions(*),
+        listen_and_complete:listen_and_complete_questions(*)
       `)
       .eq('section_id', sectionId)
       .order('order_index', { ascending: true })
@@ -444,4 +518,6 @@ class QuestionService {
 }
 
 export const questionService = new QuestionService()
+
+
 
