@@ -187,23 +187,32 @@ export interface QuestionBackendResponse {
     order_index?: number;
   };
   chord_dictation?: Array<{
-    correct_chord?: string;
-    chord_voicing?: string;
-    chord_type?: string;
-    octave?: number;
     example_play_limit?: number;
     tempo?: number;
     duration?: number;
     instrument?: string;
   }> | {
-    correct_chord?: string;
-    chord_voicing?: string;
-    chord_type?: string;
-    octave?: number;
     example_play_limit?: number;
     tempo?: number;
     duration?: number;
     instrument?: string;
+  };
+  chord_dictation_items?: Array<{
+    id?: string;
+    question_id?: string;
+    correct_chord?: string;
+    chord_voicing?: string;
+    chord_type?: string;
+    octave?: number;
+    order_index?: number;
+  }> | {
+    id?: string;
+    question_id?: string;
+    correct_chord?: string;
+    chord_voicing?: string;
+    chord_type?: string;
+    octave?: number;
+    order_index?: number;
   };
   progression_dictation?: Array<{
     correct_progression?: string[];
@@ -253,6 +262,35 @@ export interface IntervalDictationQuestionData {
   tempo?: number; // BPM (shared across all intervals)
   noteDuration?: number; // Duration in seconds (shared across all intervals)
   instrument?: 'piano' | 'sine' | 'synth'; // Instrument sound (shared across all intervals)
+}
+
+// Chord Dictation - supports multiple chords per question
+export interface ChordDictationItem {
+  correctChord: string;
+  chordVoicing?: 'root' | 'first_inversion' | 'second_inversion' | 'open';
+  chordType?: 'triad' | 'seventh' | 'extended';
+  octave?: number;
+  orderIndex: number;
+}
+
+export interface ChordDictationQuestionData {
+  questionId: string;
+  chords: ChordDictationItem[]; // Array of chords for this question
+  examplePlayLimit?: number; // Number of times students can play each chord example
+  tempo?: number; // BPM (shared across all chords)
+  duration?: number; // Duration in seconds (shared across all chords)
+  instrument?: 'piano' | 'sine' | 'synth'; // Instrument sound (shared across all chords)
+}
+
+export interface ProgressionDictationQuestionData {
+  questionId: string;
+  correctProgression: string[]; // Array of chord symbols (e.g., ['I', 'V', 'vi', 'IV'])
+  progressionKey?: string; // Key of the progression (e.g., 'C major')
+  progressionNotation?: 'roman' | 'jazz' | 'figured_bass'; // Notation style
+  examplePlayLimit?: number; // Number of times students can play the progression
+  tempo?: number; // BPM
+  chordDuration?: number; // Duration of each chord in seconds
+  instrument?: 'piano' | 'sine' | 'synth'; // Instrument sound
 }
 
 export interface TrueFalseQuestionData {

@@ -44,6 +44,7 @@ export function IntervalDictationEditor({ value, onChange }: IntervalDictationEd
     if (JSON.stringify(normalizedIntervals) !== JSON.stringify(intervals)) {
       onChange({ ...value, intervals: normalizedIntervals })
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [intervals.length])
 
   const handlePreview = async (index: number) => {

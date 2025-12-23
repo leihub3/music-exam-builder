@@ -188,6 +188,46 @@ export class MusicAudioGenerator {
   /**
    * Generate and play a chord
    */
+  /**
+   * Normalize chord name to Tonal.js format
+   * Converts "C major7" to "Cmaj7", "C minor" to "Cm", etc.
+   */
+  private normalizeChordName(chordName: string): string {
+    // Remove extra spaces and split
+    const parts = chordName.trim().split(/\s+/)
+    if (parts.length < 2) return chordName // Already in correct format or just a note
+    
+    const note = parts[0]
+    const quality = parts.slice(1).join(' ').toLowerCase()
+    
+    // Map quality names to Tonal.js abbreviations
+    const qualityMap: Record<string, string> = {
+      'major': '',
+      'minor': 'm',
+      'diminished': 'dim',
+      'augmented': 'aug',
+      'dominant7': '7',
+      'major7': 'maj7',
+      'minor7': 'm7',
+      'half-diminished7': 'm7b5',
+      'diminished7': 'dim7',
+      'augmented7': 'aug7',
+      'major 7': 'maj7',
+      'minor 7': 'm7',
+      'dominant 7': '7',
+      'half-diminished 7': 'm7b5',
+      'diminished 7': 'dim7',
+      'augmented 7': 'aug7'
+    }
+    
+    const normalizedQuality = qualityMap[quality] ?? quality
+    // If quality is empty (major), just return the note
+    if (normalizedQuality === '') {
+      return note
+    }
+    return `${note}${normalizedQuality}`
+  }
+
   async generateChord(options: GenerateChordOptions): Promise<void> {
     await this.init(options.instrument || 'sine')
 
@@ -198,11 +238,14 @@ export class MusicAudioGenerator {
     } = options
 
     try {
-        // Parse chord using Tonal.js
+      // Normalize chord name for Tonal.js
+      const normalizedChordName = this.normalizeChordName(chordName)
+      
+      // Parse chord using Tonal.js
       // Tonal.js Chord.get() returns an object with 'name' if valid
-      const chord = TonalChord.get(chordName)
+      const chord = TonalChord.get(normalizedChordName)
       if (chord.empty || !chord.name || chord.notes.length === 0) {
-        throw new Error(`Invalid chord: ${chordName}`)
+        throw new Error(`Invalid chord: ${chordName} (normalized: ${normalizedChordName})`)
       }
 
       // Convert chord notes to specific octave

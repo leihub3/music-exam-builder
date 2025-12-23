@@ -56,6 +56,7 @@ class QuestionService {
     let typeTable: string
     let typeRecord: any
     let intervalItems: any[] | null = null // For INTERVAL_DICTATION
+    let chordItems: any[] | null = null // For CHORD_DICTATION
 
     switch (questionType) {
       case 'TRUE_FALSE':
@@ -174,17 +175,24 @@ class QuestionService {
 
       case 'CHORD_DICTATION':
         typeTable = 'chord_dictation_questions'
+        // Store shared settings in chord_dictation_questions
         typeRecord = {
           question_id: question.id,
-          correct_chord: typeData.correctChord,
-          chord_voicing: typeData.chordVoicing || 'root',
-          chord_type: typeData.chordType || 'triad',
-          octave: typeData.octave ?? 4,
           example_play_limit: typeData.examplePlayLimit ?? 5,
           tempo: typeData.tempo ?? 120,
           duration: typeData.duration ?? 2.0,
           instrument: typeData.instrument || 'sine'
         }
+        // Store chord items separately
+        const chords = (typeData as any)?.chords || []
+        chordItems = chords.map((chord: any, index: number) => ({
+          question_id: question.id,
+          correct_chord: chord.correctChord,
+          chord_voicing: chord.chordVoicing || 'root',
+          chord_type: chord.chordType || 'triad',
+          octave: chord.octave ?? 4,
+          order_index: chord.orderIndex ?? index
+        }))
         break
 
       case 'PROGRESSION_DICTATION':
@@ -268,6 +276,7 @@ class QuestionService {
         interval_dictation:interval_dictation_questions(*),
         interval_dictation_items:interval_dictation_items(*),
         chord_dictation:chord_dictation_questions(*),
+        chord_dictation_items:chord_dictation_items(*),
         progression_dictation:progression_dictation_questions(*)
       `)
       .eq('id', questionId)
@@ -491,14 +500,35 @@ class QuestionService {
         typeTable = 'chord_dictation_questions'
         updateData = {
           question_id: questionId,
-          correct_chord: typeData.correctChord || '',
-          chord_voicing: typeData.chordVoicing || 'root',
-          chord_type: typeData.chordType || 'triad',
-          octave: typeData.octave ?? 4,
           example_play_limit: typeData.examplePlayLimit ?? 5,
           tempo: typeData.tempo ?? 120,
           duration: typeData.duration ?? 2.0,
           instrument: typeData.instrument || 'sine'
+        }
+        // Update chord items separately
+        const chords = (typeData as any)?.chords || []
+        if (chords.length > 0) {
+          // Delete existing items
+          await supabaseAdmin
+            .from('chord_dictation_items')
+            .delete()
+            .eq('question_id', questionId)
+          
+          // Insert new items
+          const chordItems = chords.map((chord: any, index: number) => ({
+            question_id: questionId,
+            correct_chord: chord.correctChord,
+            chord_voicing: chord.chordVoicing || 'root',
+            chord_type: chord.chordType || 'triad',
+            octave: chord.octave ?? 4,
+            order_index: chord.orderIndex ?? index
+          }))
+          
+          const { error: itemsError } = await supabaseAdmin
+            .from('chord_dictation_items')
+            .insert(chordItems)
+          
+          if (itemsError) throw itemsError
         }
         break
 
@@ -634,6 +664,7 @@ class QuestionService {
         interval_dictation:interval_dictation_questions(*),
         interval_dictation_items:interval_dictation_items(*),
         chord_dictation:chord_dictation_questions(*),
+        chord_dictation_items:chord_dictation_items(*),
         progression_dictation:progression_dictation_questions(*)
       `)
       .eq('section_id', sectionId)

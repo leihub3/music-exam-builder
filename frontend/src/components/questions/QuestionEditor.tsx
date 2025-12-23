@@ -87,10 +87,13 @@ export function QuestionEditor({
         }
       case 'CHORD_DICTATION':
         return {
-          correctChord: '',
-          chordVoicing: 'root',
-          chordType: 'triad',
-          octave: 4,
+          chords: [{
+            correctChord: 'C major',
+            chordVoicing: 'root',
+            chordType: 'triad',
+            octave: 4,
+            orderIndex: 0
+          }],
           examplePlayLimit: 5,
           tempo: 120,
           duration: 2.0,
@@ -257,16 +260,49 @@ export function QuestionEditor({
         }
       } else if (questionBackend.chord_dictation) {
         const chDict = getFirstItem(questionBackend.chord_dictation)
-        if (chDict) {
-          loadedTypeData = {
+        
+        // Load chord items
+        let chords: Array<{ correctChord: string; chordVoicing?: string; chordType?: string; octave?: number; orderIndex: number }> = []
+        if (questionBackend.chord_dictation_items) {
+          const items = Array.isArray(questionBackend.chord_dictation_items) 
+            ? questionBackend.chord_dictation_items 
+            : [questionBackend.chord_dictation_items]
+          chords = items
+            .filter((item: any) => item && item.correct_chord)
+            .map((item: any) => ({
+              correctChord: item.correct_chord || '',
+              chordVoicing: item.chord_voicing || 'root',
+              chordType: item.chord_type || 'triad',
+              octave: item.octave ?? 4,
+              orderIndex: item.order_index ?? 0
+            }))
+            .sort((a: any, b: any) => a.orderIndex - b.orderIndex)
+        }
+        
+        // Fallback: if no items but old format exists, migrate it
+        if (chords.length === 0 && chDict?.correct_chord) {
+          chords = [{
             correctChord: chDict.correct_chord || '',
             chordVoicing: chDict.chord_voicing || 'root',
             chordType: chDict.chord_type || 'triad',
             octave: chDict.octave ?? 4,
-            examplePlayLimit: chDict.example_play_limit ?? 5,
-            tempo: chDict.tempo ?? 120,
-            duration: chDict.duration ?? 2.0,
-            instrument: chDict.instrument || 'sine'
+            orderIndex: 0
+          }]
+        }
+        
+        if (chDict || chords.length > 0) {
+          loadedTypeData = {
+            chords: chords.length > 0 ? chords : [{
+              correctChord: 'C major',
+              chordVoicing: 'root',
+              chordType: 'triad',
+              octave: 4,
+              orderIndex: 0
+            }],
+            examplePlayLimit: chDict?.example_play_limit ?? 5,
+            tempo: chDict?.tempo ?? 120,
+            duration: chDict?.duration ?? 2.0,
+            instrument: chDict?.instrument || 'sine'
           }
         }
       } else if (questionBackend.progression_dictation) {
@@ -409,11 +445,22 @@ export function QuestionEditor({
 
       // Validate Chord Dictation
       if (sectionType === 'CHORD_DICTATION') {
-        if (!typeData?.correctChord || !typeData.correctChord.trim()) {
-          alert('Please enter a correct chord for the dictation question.')
+        const chords = (typeData as any)?.chords
+        if (!chords || !Array.isArray(chords) || chords.length === 0) {
+          alert('Please add at least one chord to the dictation question.')
           setLoading(false)
           return
         }
+        
+        // Validate each chord has a correctChord
+        for (let i = 0; i < chords.length; i++) {
+          if (!chords[i]?.correctChord || !chords[i].correctChord.trim()) {
+            alert(`Please enter a correct chord for chord ${i + 1}.`)
+            setLoading(false)
+            return
+          }
+        }
+        
         if (typeData?.examplePlayLimit !== undefined) {
           const limit = parseInt(String(typeData.examplePlayLimit), 10)
           if (isNaN(limit) || limit < 1 || limit > 20) {
