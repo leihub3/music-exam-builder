@@ -454,7 +454,10 @@ export default function PreviewExamPage() {
 
                                     {sectionType === 'LISTEN_AND_WRITE' && (
                                       <div className="space-y-2">
-                                        <p className="text-sm font-medium text-gray-700">Answer Type: Listen and Write</p>
+                                        <p className="text-sm font-medium text-gray-700">
+                                          Answer Type: Listen and Write
+                                          {sectionCategory === 'EAR_TRAINING' && ' (Ear Training)'}
+                                        </p>
                                         {(() => {
                                           const lawData = Array.isArray((question as any).listen_and_write)
                                             ? (question as any).listen_and_write[0]
@@ -462,8 +465,31 @@ export default function PreviewExamPage() {
                                           return lawData && (
                                             <div className="space-y-2 text-sm">
                                               {lawData.audio_file_path && (
+                                                <div className="p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
+                                                  <p className="text-gray-600 mb-2">Audio file available</p>
+                                                  <audio controls className="w-full mt-2" src={(() => {
+                                                    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+                                                    if (supabaseUrl && lawData.audio_file_path) {
+                                                      return `${supabaseUrl}/storage/v1/object/public/audio-files/${lawData.audio_file_path}`;
+                                                    }
+                                                    return '';
+                                                  })()}>
+                                                    Your browser does not support the audio element.
+                                                  </audio>
+                                                </div>
+                                              )}
+                                              {lawData.concert_a_play_limit !== undefined && (
                                                 <p className="text-gray-600">
-                                                  Audio file available. Students will listen and write what they hear.
+                                                  Concert A plays: {lawData.concert_a_play_limit ?? 3}
+                                                </p>
+                                              )}
+                                              {lawData.reference_score_path || lawData.reference_score_music_xml ? (
+                                                <p className="text-green-600 font-medium">
+                                                  ✓ Reference score available for auto-grading
+                                                </p>
+                                              ) : (
+                                                <p className="text-gray-600">
+                                                  Manual grading (no reference score provided)
                                                 </p>
                                               )}
                                               {lawData.answer_format && (

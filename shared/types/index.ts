@@ -140,7 +140,21 @@ export interface QuestionBackendResponse {
   listening?: unknown;
   transposition?: unknown;
   orchestration?: unknown;
-  listen_and_write?: unknown;
+  listen_and_write?: Array<{
+    audio_file_path?: string;
+    correct_answer?: string;
+    answer_format?: string;
+    concert_a_play_limit?: number;
+    reference_score_path?: string;
+    reference_score_music_xml?: string;
+  }> | {
+    audio_file_path?: string;
+    correct_answer?: string;
+    answer_format?: string;
+    concert_a_play_limit?: number;
+    reference_score_path?: string;
+    reference_score_music_xml?: string;
+  };
   listen_and_repeat?: unknown;
   listen_and_complete?: unknown;
   typeData?: QuestionTypeData;
@@ -198,8 +212,11 @@ export interface OrchestrationQuestionData {
 export interface ListenAndWriteQuestionData {
   questionId: string;
   audioFilePath: string;
-  correctAnswer: string;
+  correctAnswer?: string;  // Optional - can be null if using reference score
   answerFormat?: 'notes' | 'text';
+  concertAPlayLimit?: number;  // Number of times Concert A can be played (default: 3)
+  referenceScorePath?: string;  // Path to reference MusicXML file
+  referenceScoreMusicXML?: string;  // Inline MusicXML string from editor
 }
 
 export interface ListenAndRepeatQuestionData {

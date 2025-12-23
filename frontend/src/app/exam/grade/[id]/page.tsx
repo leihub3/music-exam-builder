@@ -14,6 +14,7 @@ import { TranspositionEvaluator } from '@/components/grading/TranspositionEvalua
 import { TranspositionGradingView } from '@/components/grading/TranspositionGradingView'
 import { ListenAndCompleteGradingView } from '@/components/grading/ListenAndCompleteGradingView'
 import { ListenAndCompleteEvaluator } from '@/components/grading/ListenAndCompleteEvaluator'
+import { ListenAndWriteEvaluator } from '@/components/grading/ListenAndWriteEvaluator'
 import JSZip from 'jszip'
 import type { ExamAttempt, StudentAnswer } from '@music-exam-builder/shared/types'
 
@@ -533,7 +534,39 @@ export default function GradeAttemptPage() {
                       ) : sectionType === 'MULTIPLE_CHOICE' ? (
                         <p className="font-medium">{answer.answer?.selectedOption}</p>
                       ) : sectionType === 'LISTEN_AND_WRITE' ? (
-                        <p className="font-medium">{answer.answer?.answer || 'No answer provided'}</p>
+                        <>
+                          {/* Display student answer - can be MusicXML or text */}
+                          <div className="mb-4">
+                            {answer.answer?.musicXML ? (
+                              <div>
+                                <p className="text-sm font-medium mb-2">Student submitted MusicXML transcription:</p>
+                                <div className="border rounded p-3 bg-gray-50 max-h-96 overflow-auto">
+                                  <pre className="text-xs whitespace-pre-wrap">{answer.answer.musicXML.substring(0, 500)}...</pre>
+                                </div>
+                              </div>
+                            ) : answer.answer?.answer ? (
+                              <p className="font-medium">{answer.answer.answer}</p>
+                            ) : answer.submissionFilePath ? (
+                              <p className="text-sm text-gray-600">Student submitted a file. See evaluation below.</p>
+                            ) : (
+                              <p className="font-medium text-gray-500">No answer provided</p>
+                            )}
+                          </div>
+                          
+                          {/* Listen and Write Evaluator for Teachers (if reference score available) */}
+                          <div className="mt-6 pt-6 border-t">
+                            <ListenAndWriteEvaluator
+                              question={question}
+                              studentAnswer={answer}
+                              onEvaluationComplete={(score, feedback, details) => {
+                                // Update the grade based on evaluation result
+                                const suggestedPoints = Math.round((score / 100) * answer.maxPoints)
+                                handleGradeChange(answer.id, 'points', suggestedPoints)
+                                handleGradeChange(answer.id, 'feedback', feedback)
+                              }}
+                            />
+                          </div>
+                        </>
                       ) : sectionType === 'LISTEN_AND_COMPLETE' ? (
                         <>
                           <ListenAndCompleteGradingView 

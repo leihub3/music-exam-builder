@@ -120,8 +120,11 @@ class QuestionService {
         typeRecord = {
           question_id: question.id,
           audio_file_path: typeData.audioFilePath,
-          correct_answer: typeData.correctAnswer,
-          answer_format: typeData.answerFormat || 'notes'
+          correct_answer: typeData.correctAnswer || null,
+          answer_format: typeData.answerFormat || 'notes',
+          concert_a_play_limit: typeData.concertAPlayLimit ?? 3,
+          reference_score_path: typeData.referenceScorePath || null,
+          reference_score_music_xml: typeData.referenceScoreMusicXML || null
         }
         break
 
@@ -350,8 +353,11 @@ class QuestionService {
         updateData = {
           question_id: questionId,
           audio_file_path: typeData.audioFilePath || null,
-          correct_answer: typeData.correctAnswer || '',
-          answer_format: typeData.answerFormat || 'notes'
+          correct_answer: typeData.correctAnswer || null,
+          answer_format: typeData.answerFormat || 'notes',
+          concert_a_play_limit: typeData.concertAPlayLimit ?? 3,
+          reference_score_path: typeData.referenceScorePath || null,
+          reference_score_music_xml: typeData.referenceScoreMusicXML || null
         }
         break
 

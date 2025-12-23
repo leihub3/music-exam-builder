@@ -206,7 +206,8 @@ class AttemptService {
           section:exam_sections(section_type),
           true_false:true_false_questions(*),
           multiple_choice:multiple_choice_questions(*),
-          listen_and_complete:listen_and_complete_questions(*)
+          listen_and_complete:listen_and_complete_questions(*),
+          listen_and_write:listen_and_write_questions(*)
         )
       `)
       .eq('attempt_id', attemptId)
@@ -269,6 +270,57 @@ class AttemptService {
           console.error('Error auto-grading Listen and Complete:', error)
           // Skip this answer if evaluation fails
           return
+        }
+      } else if (sectionType === 'LISTEN_AND_WRITE') {
+        // Auto-grade Listen and Write questions using MusicXML evaluation
+        const questionData = question.listen_and_write?.[0]
+        const studentMusicXML = answer.answer?.musicXML
+        
+        // Check if we have a reference score for auto-grading
+        const hasReferenceScore = questionData?.reference_score_path || questionData?.reference_score_music_xml
+        if (!studentMusicXML || !hasReferenceScore) {
+          // Cannot auto-grade without student MusicXML or reference score - skip
+          return
+        }
+
+        try {
+          // Load reference score
+          let referenceMusicXML: string
+          
+          if (questionData.reference_score_music_xml) {
+            // Use inline MusicXML from editor
+            referenceMusicXML = questionData.reference_score_music_xml
+          } else if (questionData.reference_score_path) {
+            // Load from file path
+            const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+            if (!supabaseUrl) {
+              console.error('Supabase URL not configured')
+              return
+            }
+
+            const referenceScoreUrl = `${supabaseUrl}/storage/v1/object/public/notation-files/${questionData.reference_score_path}`
+            const response = await fetch(referenceScoreUrl)
+            
+            if (!response.ok) {
+              console.error('Failed to load reference score')
+              return
+            }
+
+            referenceMusicXML = await response.text()
+          } else {
+            return // No reference score available
+          }
+          
+          // Use notation evaluator to compare (0 semitones - no transposition)
+          const { evaluateTransposition } = await import('@/lib/notation/evaluator')
+          const evaluation = evaluateTransposition(referenceMusicXML, studentMusicXML, 0)
+          
+          // Calculate points based on percentage (round to nearest integer)
+          pointsEarned = Math.round((evaluation.percentage / 100) * question.points)
+          isCorrect = evaluation.percentage >= 90 // Consider 90%+ as correct
+        } catch (error) {
+          console.error('Error auto-grading Listen and Write:', error)
+          return // Skip this question if evaluation fails
         }
       } else {
         // Skip non-objective questions

@@ -235,6 +235,15 @@ class ApiClient {
     const response = await this.client.post('/notation/evaluate-transposition', data)
     return response.data
   }
+
+  async evaluateListenAndWrite(data: {
+    questionId: string
+    studentMusicXML: string
+    referenceMusicXML: string
+  }) {
+    const response = await this.client.post('/notation/evaluate-listen-and-write', data)
+    return response.data
+  }
 }
 
 export const api = new ApiClient()

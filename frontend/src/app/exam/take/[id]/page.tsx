@@ -347,7 +347,7 @@ export default function TakeExamPage() {
                 
                 // Hide question text for TRANSPOSITION and ORCHESTRATION questions
                 // as they have their own instruction displays
-                const shouldShowQuestionText = sectionType !== 'TRANSPOSITION' && sectionType !== 'ORCHESTRATION' && sectionType !== 'LISTEN_AND_COMPLETE'
+                const shouldShowQuestionText = sectionType !== 'TRANSPOSITION' && sectionType !== 'ORCHESTRATION' && sectionType !== 'LISTEN_AND_COMPLETE' && sectionType !== 'LISTEN_AND_WRITE'
                 
                 return (
                   <div key={section.id}>

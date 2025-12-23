@@ -57,7 +57,14 @@ export function QuestionEditor({
       case 'ORCHESTRATION':
         return { pianoScorePath: '', targetEnsemble: '', ensembleInstruments: [], rubric: [] }
       case 'LISTEN_AND_WRITE':
-        return { audioFilePath: '', correctAnswer: '', answerFormat: 'notes' }
+        return { 
+          audioFilePath: '', 
+          correctAnswer: '', 
+          answerFormat: 'notes',
+          concertAPlayLimit: 3,
+          referenceScorePath: undefined,
+          referenceScoreMusicXML: undefined
+        }
       case 'LISTEN_AND_REPEAT':
         return { audioFilePath: '', expectedNotes: [''], noteFormat: 'solfege', tolerance: 'strict' }
       case 'LISTEN_AND_COMPLETE':
@@ -160,8 +167,11 @@ export function QuestionEditor({
         if (law) {
           loadedTypeData = {
             audioFilePath: law.audio_file_path || '',
-            correctAnswer: law.correct_answer || '',
-            answerFormat: law.answer_format || 'notes'
+            correctAnswer: law.correct_answer || undefined,
+            answerFormat: law.answer_format || 'notes',
+            concertAPlayLimit: law.concert_a_play_limit ?? 3,
+            referenceScorePath: law.reference_score_path || undefined,
+            referenceScoreMusicXML: law.reference_score_music_xml || undefined
           }
         }
       } else if (questionBackend.listen_and_repeat) {
@@ -229,6 +239,35 @@ export function QuestionEditor({
           alert('Each option must have a notation file for Ear Training Multiple Choice questions. Please upload a notation file for each option.')
           setLoading(false)
           return
+        }
+      }
+
+      // Validate Ear Training Listen and Write: audio required, either reference score OR correct answer
+      if (sectionType === 'LISTEN_AND_WRITE' && sectionCategory === 'EAR_TRAINING') {
+        if (!typeData?.audioFilePath) {
+          alert('Audio file is required for Ear Training Listen and Write questions.')
+          setLoading(false)
+          return
+        }
+        
+        // Either reference score OR correct answer must be provided
+        const hasReferenceScore = typeData?.referenceScorePath || typeData?.referenceScoreMusicXML
+        const hasCorrectAnswer = typeData?.correctAnswer?.trim()
+        
+        if (!hasReferenceScore && !hasCorrectAnswer) {
+          alert('Either a reference score (for auto-grading) or a correct answer (for manual grading) must be provided.')
+          setLoading(false)
+          return
+        }
+        
+        // Validate concert A play limit
+        if (typeData?.concertAPlayLimit !== undefined) {
+          const limit = parseInt(String(typeData.concertAPlayLimit), 10)
+          if (isNaN(limit) || limit < 0 || limit > 20) {
+            alert('Concert A play limit must be between 0 and 20.')
+            setLoading(false)
+            return
+          }
         }
       }
 
