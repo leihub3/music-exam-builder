@@ -6,18 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Edit, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { QuestionEditor } from './QuestionEditor'
-import type { Question } from '@music-exam-builder/shared/types'
+import type { Question, QuestionBackendResponse } from '@music-exam-builder/shared/types'
 
 interface QuestionCardProps {
   question: Question
   index: number
   sectionId?: string
   sectionType?: string
+  sectionCategory?: string
   onUpdated: () => void
   onDeleted: () => void
 }
 
-export function QuestionCard({ question, index, sectionId, sectionType, onUpdated, onDeleted }: QuestionCardProps) {
+export function QuestionCard({ question, index, sectionId, sectionType, sectionCategory, onUpdated, onDeleted }: QuestionCardProps) {
   const [deleting, setDeleting] = useState(false)
   const [editing, setEditing] = useState(false)
 
@@ -30,7 +31,7 @@ export function QuestionCard({ question, index, sectionId, sectionType, onUpdate
     try {
       await api.deleteQuestion(question.id)
       onDeleted()
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Error deleting question:', err)
       alert('Failed to delete question')
     } finally {
@@ -51,18 +52,22 @@ export function QuestionCard({ question, index, sectionId, sectionType, onUpdate
     onUpdated()
   }
 
-  const questionText = (question as any).question_text || question.questionText
+  const questionBackend = question as QuestionBackendResponse
+  const questionText = questionBackend.question_text || question.questionText
   const questionPoints = question.points
 
-  // Get section type and ID from props or question
+  // Get section type, category, and ID from props or question
   const finalSectionId = sectionId || 
-                         (question as any).section_id || 
-                         (question as any).sectionId ||
-                         (question as any).section?.id
+                         questionBackend.section_id || 
+                         questionBackend.sectionId ||
+                         questionBackend.section?.id
   const finalSectionType = sectionType ||
-                          (question as any).section?.section_type || 
-                          (question as any).section?.sectionType ||
-                          (question as any).sectionType
+                          questionBackend.section?.section_type || 
+                          questionBackend.section?.sectionType ||
+                          (question as Question & { sectionType?: string }).sectionType
+  const finalSectionCategory = sectionCategory ||
+                              questionBackend.section?.section_category ||
+                              questionBackend.section?.sectionCategory
 
   if (editing) {
     if (!finalSectionId || !finalSectionType) {
@@ -79,7 +84,8 @@ export function QuestionCard({ question, index, sectionId, sectionType, onUpdate
     return (
       <QuestionEditor
         sectionId={finalSectionId}
-        sectionType={finalSectionType as any}
+        sectionType={finalSectionType as SectionType}
+        sectionCategory={finalSectionCategory}
         questionId={question.id}
         onSaved={handleSaved}
         onCancel={handleCancelEdit}

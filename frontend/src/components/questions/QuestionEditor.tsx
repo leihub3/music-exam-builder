@@ -14,11 +14,12 @@ import { OrchestrationEditor } from './OrchestrationEditor'
 import { ListenAndWriteEditor } from './ListenAndWriteEditor'
 import { ListenAndRepeatEditor } from './ListenAndRepeatEditor'
 import { ListenAndCompleteEditor } from './ListenAndCompleteEditor'
-import type { SectionType } from '@music-exam-builder/shared/types'
+import type { SectionType, QuestionTypeData, QuestionBackendResponse } from '@music-exam-builder/shared/types'
 
 interface QuestionEditorProps {
   sectionId: string
   sectionType: SectionType
+  sectionCategory?: string
   questionId?: string
   onSaved: () => void
   onCancel: () => void
@@ -26,7 +27,8 @@ interface QuestionEditorProps {
 
 export function QuestionEditor({ 
   sectionId, 
-  sectionType, 
+  sectionType,
+  sectionCategory,
   questionId,
   onSaved, 
   onCancel 
@@ -65,7 +67,7 @@ export function QuestionEditor({
     }
   }
   
-  const [typeData, setTypeData] = useState<any>(getInitialTypeData())
+  const [typeData, setTypeData] = useState<QuestionTypeData | Record<string, unknown>>(getInitialTypeData())
 
   // Load question data if editing
   useEffect(() => {
@@ -85,14 +87,12 @@ export function QuestionEditor({
       console.log('Question loaded:', question)
       
       // Set basic fields
-      setQuestionText((question as any).question_text || question.questionText || '')
+      const questionBackend = question as QuestionBackendResponse
+      setQuestionText(questionBackend.question_text || questionBackend.questionText || question.questionText || '')
       setPoints(String(question.points || 1))
       
-      // Set type-specific data
-      const questionAny = question as any
-      
       // Helper to get first item from array or object
-      const getFirstItem = (data: any) => {
+      const getFirstItem = <T,>(data: T | T[] | null | undefined): T | null => {
         if (Array.isArray(data)) {
           return data.length > 0 ? data[0] : null
         }
@@ -104,10 +104,10 @@ export function QuestionEditor({
       }
       
       // Try to get from nested structure (backend format)
-      let loadedTypeData: any = null
+      let loadedTypeData: QuestionTypeData | Record<string, unknown> | null = null
       
-      if (questionAny.true_false) {
-        const tf = getFirstItem(questionAny.true_false)
+      if (questionBackend.true_false) {
+        const tf = getFirstItem(questionBackend.true_false)
         if (tf) {
           loadedTypeData = { 
             correctAnswer: tf.correct_answer !== undefined ? tf.correct_answer : true,
@@ -115,16 +115,18 @@ export function QuestionEditor({
             notationFilePath: tf.notation_file_path || undefined
           }
         }
-      } else if (questionAny.multiple_choice) {
-        const mc = getFirstItem(questionAny.multiple_choice)
+      } else if (questionBackend.multiple_choice) {
+        const mc = getFirstItem(questionBackend.multiple_choice)
         if (mc) {
           loadedTypeData = { 
             options: Array.isArray(mc.options) ? mc.options : (mc.options || []), 
-            correctOptionIndex: mc.correct_option_index !== undefined ? mc.correct_option_index : 0 
+            correctOptionIndex: mc.correct_option_index !== undefined ? mc.correct_option_index : 0,
+            audioFilePath: mc.audio_file_path || undefined,
+            optionNotationFilePaths: Array.isArray(mc.option_notation_file_paths) ? mc.option_notation_file_paths : (mc.option_notation_file_paths || [])
           }
         }
-      } else if (questionAny.listening) {
-        const li = getFirstItem(questionAny.listening)
+      } else if (questionBackend.listening) {
+        const li = getFirstItem(questionBackend.listening)
         if (li) {
           loadedTypeData = {
             questionType: li.question_type || 'interval',
@@ -133,8 +135,8 @@ export function QuestionEditor({
             correctAnswer: li.correct_answer || ''
           }
         }
-      } else if (questionAny.transposition) {
-        const tr = getFirstItem(questionAny.transposition)
+      } else if (questionBackend.transposition) {
+        const tr = getFirstItem(questionBackend.transposition)
         if (tr) {
           loadedTypeData = {
             sourceInstrument: tr.source_instrument || '',
@@ -143,8 +145,8 @@ export function QuestionEditor({
             referenceAnswerPath: tr.reference_answer_path || ''
           }
         }
-      } else if (questionAny.orchestration) {
-        const or = getFirstItem(questionAny.orchestration)
+      } else if (questionBackend.orchestration) {
+        const or = getFirstItem(questionBackend.orchestration)
         if (or) {
           loadedTypeData = {
             pianoScorePath: or.piano_score_path || '',
@@ -153,8 +155,8 @@ export function QuestionEditor({
             rubric: Array.isArray(or.rubric) ? or.rubric : (or.rubric || [])
           }
         }
-      } else if (questionAny.listen_and_write) {
-        const law = getFirstItem(questionAny.listen_and_write)
+      } else if (questionBackend.listen_and_write) {
+        const law = getFirstItem(questionBackend.listen_and_write)
         if (law) {
           loadedTypeData = {
             audioFilePath: law.audio_file_path || '',
@@ -162,8 +164,8 @@ export function QuestionEditor({
             answerFormat: law.answer_format || 'notes'
           }
         }
-      } else if (questionAny.listen_and_repeat) {
-        const lar = getFirstItem(questionAny.listen_and_repeat)
+      } else if (questionBackend.listen_and_repeat) {
+        const lar = getFirstItem(questionBackend.listen_and_repeat)
         if (lar) {
           loadedTypeData = {
             audioFilePath: lar.audio_file_path || '',
@@ -172,8 +174,8 @@ export function QuestionEditor({
             tolerance: lar.tolerance || 'strict'
           }
         }
-      } else if (questionAny.listen_and_complete) {
-        const lac = getFirstItem(questionAny.listen_and_complete)
+      } else if (questionBackend.listen_and_complete) {
+        const lac = getFirstItem(questionBackend.listen_and_complete)
         if (lac) {
           loadedTypeData = {
             audioFilePath: lac.audio_file_path || '',
@@ -192,10 +194,11 @@ export function QuestionEditor({
         console.log('No type data found, using defaults')
         // Keep the initial typeData from getInitialTypeData()
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } }; message?: string }
       console.error('Error loading question:', err)
-      console.error('Error details:', err.response?.data || err.message)
-      alert('Failed to load question data: ' + (err.response?.data?.error || err.message))
+      console.error('Error details:', error.response?.data || error.message)
+      alert('Failed to load question data: ' + (error.response?.data?.error || error.message))
     } finally {
       setLoadingQuestion(false)
     }
@@ -211,6 +214,22 @@ export function QuestionEditor({
         alert('Notation file is required when an audio file is provided for Ear Training questions. Students need a score to compare with the audio.')
         setLoading(false)
         return
+      }
+
+      // Validate Ear Training Multiple Choice: audio and notation file for each option are required
+      if (sectionType === 'MULTIPLE_CHOICE' && sectionCategory === 'EAR_TRAINING') {
+        if (!typeData?.audioFilePath) {
+          alert('Audio file is required for Ear Training Multiple Choice questions.')
+          setLoading(false)
+          return
+        }
+        const optionNotationPaths = typeData?.optionNotationFilePaths || []
+        const options = typeData?.options || []
+        if (optionNotationPaths.length !== options.length || optionNotationPaths.some((path: string | null) => !path)) {
+          alert('Each option must have a notation file for Ear Training Multiple Choice questions. Please upload a notation file for each option.')
+          setLoading(false)
+          return
+        }
       }
 
       const questionData = {
@@ -236,9 +255,10 @@ export function QuestionEditor({
       } else {
         throw new Error(response.error || `Failed to ${questionId ? 'update' : 'create'} question`)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as { response?: { data?: { error?: string } }; message?: string }
       console.error(`Error ${questionId ? 'updating' : 'creating'} question:`, err)
-      alert(err.response?.data?.error || err.message || `Failed to ${questionId ? 'update' : 'create'} question`)
+      alert(error.response?.data?.error || error.message || `Failed to ${questionId ? 'update' : 'create'} question`)
     } finally {
       setLoading(false)
     }

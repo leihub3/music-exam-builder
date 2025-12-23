@@ -89,9 +89,60 @@ export interface Question {
   questionText: string;
   points: number;
   orderIndex: number;
-  metadata: Record<string, any>;
+  metadata: Record<string, unknown>;
   createdAt: string;
   updatedAt: string;
+  typeData?: QuestionTypeData;
+}
+
+// Backend response format (snake_case with nested type data)
+export interface QuestionBackendResponse {
+  id: string;
+  section_id?: string;
+  sectionId?: string;
+  question_text?: string;
+  questionText?: string;
+  points: number;
+  order_index?: number;
+  orderIndex?: number;
+  metadata?: Record<string, unknown>;
+  created_at?: string;
+  createdAt?: string;
+  updated_at?: string;
+  updatedAt?: string;
+  section?: {
+    section_type?: string;
+    sectionType?: string;
+    section_category?: string;
+    sectionCategory?: string;
+    id?: string;
+  };
+  true_false?: Array<{
+    correct_answer?: boolean;
+    audio_file_path?: string;
+    notation_file_path?: string;
+  }> | {
+    correct_answer?: boolean;
+    audio_file_path?: string;
+    notation_file_path?: string;
+  };
+  multiple_choice?: Array<{
+    options?: string[];
+    correct_option_index?: number;
+    audio_file_path?: string;
+    option_notation_file_paths?: string[];
+  }> | {
+    options?: string[];
+    correct_option_index?: number;
+    audio_file_path?: string;
+    option_notation_file_paths?: string[];
+  };
+  listening?: unknown;
+  transposition?: unknown;
+  orchestration?: unknown;
+  listen_and_write?: unknown;
+  listen_and_repeat?: unknown;
+  listen_and_complete?: unknown;
   typeData?: QuestionTypeData;
 }
 
@@ -116,6 +167,8 @@ export interface MultipleChoiceQuestionData {
   questionId: string;
   options: string[];
   correctOptionIndex: number;
+  audioFilePath?: string;        // Required for Ear Training
+  optionNotationFilePaths?: string[];  // Array of notation file paths (one per option) - Required for Ear Training
 }
 
 export interface ListeningQuestionData {

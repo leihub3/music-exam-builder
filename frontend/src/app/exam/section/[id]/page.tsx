@@ -95,6 +95,7 @@ export default function SectionQuestionsPage() {
             <QuestionEditor
               sectionId={sectionId}
               sectionType={(section as any).sectionType || (section as any).section_type}
+              sectionCategory={(section as any).sectionCategory || (section as any).section_category}
               onSaved={() => {
                 setShowAddQuestion(false)
                 loadSection()
@@ -124,6 +125,7 @@ export default function SectionQuestionsPage() {
                 index={index}
                 sectionId={sectionId}
                 sectionType={(section as any)?.sectionType || (section as any)?.section_type}
+                sectionCategory={(section as any)?.sectionCategory || (section as any)?.section_category}
                 onUpdated={loadSection}
                 onDeleted={loadSection}
               />

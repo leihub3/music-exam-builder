@@ -76,7 +76,9 @@ class QuestionService {
         typeRecord = {
           question_id: question.id,
           options: typeData.options,
-          correct_option_index: typeData.correctOptionIndex
+          correct_option_index: typeData.correctOptionIndex,
+          audio_file_path: typeData.audioFilePath || null,
+          option_notation_file_paths: typeData.optionNotationFilePaths || null
         }
         break
 
@@ -304,7 +306,9 @@ class QuestionService {
         updateData = {
           question_id: questionId,
           options: typeData.options || [],
-          correct_option_index: typeData.correctOptionIndex !== undefined ? typeData.correctOptionIndex : 0
+          correct_option_index: typeData.correctOptionIndex !== undefined ? typeData.correctOptionIndex : 0,
+          audio_file_path: typeData.audioFilePath !== undefined ? typeData.audioFilePath : null,
+          option_notation_file_paths: typeData.optionNotationFilePaths !== undefined ? typeData.optionNotationFilePaths : null
         }
         break
 
