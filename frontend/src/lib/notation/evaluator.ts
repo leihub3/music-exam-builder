@@ -3,6 +3,109 @@
  * Compares student's transposition with reference answer
  */
 
+// Use server-side XML parser if available (Node.js), otherwise use browser DOMParser
+let DOMParserClass: any
+let isXmldom = false
+if (typeof window === 'undefined') {
+  // Server-side: use xmldom
+  const { DOMParser: XMDOMParser } = require('@xmldom/xmldom')
+  DOMParserClass = XMDOMParser
+  isXmldom = true
+} else {
+  // Browser: use native DOMParser
+  DOMParserClass = DOMParser
+  isXmldom = false
+}
+
+// Helper functions for cross-platform DOM queries (xmldom doesn't support querySelector)
+function querySelector(element: any, selector: string): any {
+  if (!element) return null
+  
+  if (isXmldom) {
+    // xmldom doesn't support querySelector, use getElementsByTagName
+    // For simple tag names, just get the first element
+    if (!selector.includes('[') && !selector.includes(' ')) {
+      const elements = element.getElementsByTagName(selector)
+      return elements && elements.length > 0 ? elements[0] : null
+    }
+    // For attribute selectors like 'tie[type="start"]', we need to search manually
+    if (selector.includes('[')) {
+      const match = selector.match(/^(\w+)\[(\w+)="([^"]+)"\]$/)
+      if (match) {
+        const tagName = match[1]
+        const attrName = match[2]
+        const attrValue = match[3]
+        const elements = element.getElementsByTagName(tagName)
+        for (let i = 0; i < elements.length; i++) {
+          const el = elements[i]
+          if (el.getAttribute && el.getAttribute(attrName) === attrValue) {
+            return el
+          }
+        }
+      }
+      return null
+    }
+    return null
+  } else {
+    // Browser: use native querySelector
+    return element.querySelector(selector)
+  }
+}
+
+function querySelectorAll(element: any, selector: string): any[] {
+  if (!element) return []
+  
+  if (isXmldom) {
+    // xmldom doesn't support querySelectorAll, use getElementsByTagName
+    if (!selector.includes('[') && !selector.includes(' ')) {
+      const elements = element.getElementsByTagName(selector)
+      if (!elements) return []
+      // Convert NodeList to array manually for xmldom
+      const results: any[] = []
+      for (let i = 0; i < elements.length; i++) {
+        results.push(elements[i])
+      }
+      return results
+    }
+    // For attribute selectors, search manually
+    if (selector.includes('[')) {
+      const match = selector.match(/^(\w+)\[(\w+)="([^"]+)"\]$/)
+      if (match) {
+        const tagName = match[1]
+        const attrName = match[2]
+        const attrValue = match[3]
+        const elements = element.getElementsByTagName(tagName)
+        const results: any[] = []
+        if (elements) {
+          for (let i = 0; i < elements.length; i++) {
+            const el = elements[i]
+            if (el.getAttribute && el.getAttribute(attrName) === attrValue) {
+              results.push(el)
+            }
+          }
+        }
+        return results
+      }
+    }
+    return []
+  } else {
+    // Browser: use native querySelectorAll
+    return Array.from(element.querySelectorAll(selector))
+  }
+}
+
+function getTextContent(element: any): string {
+  if (!element) return ''
+  if (isXmldom) {
+    // xmldom uses textContent or firstChild.nodeValue
+    if (element.textContent) return element.textContent
+    if (element.firstChild && element.firstChild.nodeValue) return element.firstChild.nodeValue
+    return ''
+  } else {
+    return element.textContent || ''
+  }
+}
+
 export interface NoteData {
   step: string // C, D, E, F, G, A, B
   octave: number
@@ -57,38 +160,136 @@ function noteToMIDI(step: string, octave: number, alter: number = 0): number {
 }
 
 /**
+ * Get expected accidental for a note step based on key signature (fifths)
+ * Returns the alter value expected by the key signature (1 for sharp, -1 for flat, 0 for natural)
+ */
+function getKeySignatureAccidental(step: string, fifths: number): number {
+  const stepUpper = step.toUpperCase()
+  
+  if (fifths > 0) {
+    // Sharp keys: F, C, G, D, A, E, B (Father Charles Goes Down And Ends Battle)
+    const sharpOrder = ['F', 'C', 'G', 'D', 'A', 'E', 'B']
+    const sharpIndex = sharpOrder.indexOf(stepUpper)
+    if (sharpIndex >= 0 && sharpIndex < fifths) {
+      return 1 // Sharp
+    }
+  } else if (fifths < 0) {
+    // Flat keys: B, E, A, D, G, C, F (Battle Ends And Down Goes Charles Father)
+    const flatOrder = ['B', 'E', 'A', 'D', 'G', 'C', 'F']
+    const flatIndex = flatOrder.indexOf(stepUpper)
+    if (flatIndex >= 0 && flatIndex < Math.abs(fifths)) {
+      return -1 // Flat
+    }
+  }
+  
+  return 0 // Natural (no accidental from key signature)
+}
+
+/**
+ * Normalize alter value considering key signature
+ * If alter is missing (undefined/null) or 0, use the key signature's expected accidental
+ */
+function normalizeAccidental(step: string, alter: number | undefined | null, keySignatureFifths: number): number {
+  // If alter is explicitly provided (even if 0), use it (explicit natural cancels key signature)
+  if (alter !== undefined && alter !== null) {
+    return alter
+  }
+  
+  // Otherwise, use key signature default
+  return getKeySignatureAccidental(step, keySignatureFifths)
+}
+
+/**
  * Parse MusicXML and extract notes
  */
-function parseMusicXML(musicXML: string): NoteData[] {
+function parseMusicXML(musicXML: string): { notes: NoteData[], keySignatureFifths: number } {
   try {
-    const parser = new DOMParser()
+    const parser = new DOMParserClass()
     const xmlDoc = parser.parseFromString(musicXML, 'text/xml')
     
     // Check for parsing errors
-    const parserError = xmlDoc.querySelector('parsererror')
+    const parserError = querySelector(xmlDoc, 'parsererror')
     if (parserError) {
-      console.error('MusicXML parsing error:', parserError.textContent)
-      return []
+      console.error('[evaluator] MusicXML parsing error:', getTextContent(parserError))
+      return { notes: [], keySignatureFifths: 0 }
     }
     
     const notes: NoteData[] = []
-    const noteElements = xmlDoc.querySelectorAll('note')
+    const noteElements = querySelectorAll(xmlDoc, 'note')
+    console.log('[evaluator] parseMusicXML: Found', noteElements.length, 'note elements')
     
-    let currentPosition = 0
+    // Find divisions and key signature in the first measure's attributes
+    const firstMeasure = querySelector(xmlDoc, 'measure')
+    const attributes = firstMeasure ? querySelector(firstMeasure, 'attributes') : null
+    const divisionsEl = attributes ? querySelector(attributes, 'divisions') : null
     const divisions = parseInt(
-      xmlDoc.querySelector('divisions')?.textContent || '4',
+      divisionsEl ? getTextContent(divisionsEl) : '4',
       10
     )
+    console.log('[evaluator] parseMusicXML: Using divisions:', divisions)
     
-    noteElements.forEach((noteEl) => {
-      const pitchEl = noteEl.querySelector('pitch')
-      if (!pitchEl) return // Skip rests
+    // Parse key signature (fifths)
+    let keySignatureFifths = 0
+    if (attributes) {
+      const keyEl = querySelector(attributes, 'key')
+      if (keyEl) {
+        const fifthsEl = querySelector(keyEl, 'fifths')
+        if (fifthsEl) {
+          keySignatureFifths = parseInt(getTextContent(fifthsEl) || '0', 10)
+          console.log('[evaluator] parseMusicXML: Key signature fifths:', keySignatureFifths)
+        }
+      }
+    }
+    
+    let currentPosition = 0
+    
+    noteElements.forEach((noteEl: any, index: number) => {
+      const pitchEl = querySelector(noteEl, 'pitch')
+      if (!pitchEl) {
+        // For rests, we still need to account for their duration in the position
+        const durationEl = querySelector(noteEl, 'duration')
+        const duration = parseInt(durationEl ? getTextContent(durationEl) : '4', 10)
+        currentPosition += duration / divisions
+        return // Skip rests but update position
+      }
       
-      const step = pitchEl.querySelector('step')?.textContent || ''
-      const octave = parseInt(pitchEl.querySelector('octave')?.textContent || '4', 10)
-      const alter = parseInt(pitchEl.querySelector('alter')?.textContent || '0', 10)
-      const duration = parseInt(noteEl.querySelector('duration')?.textContent || '4', 10)
-      const type = noteEl.querySelector('type')?.textContent || 'quarter'
+      const stepEl = querySelector(pitchEl, 'step')
+      const step = stepEl ? getTextContent(stepEl) : ''
+      const octaveEl = querySelector(pitchEl, 'octave')
+      const octave = parseInt(octaveEl ? getTextContent(octaveEl) : '4', 10)
+      const alterEl = querySelector(pitchEl, 'alter')
+      // If alter element exists, use its value (even if 0, which means explicit natural)
+      // If alter element doesn't exist, the accidental comes from key signature
+      const alterValue = alterEl ? parseInt(getTextContent(alterEl) || '0', 10) : null
+      // Normalize: if alter is null (missing), use key signature; if present, use explicit value
+      const alter = alterValue !== null ? alterValue : getKeySignatureAccidental(step, keySignatureFifths)
+      const durationEl = querySelector(noteEl, 'duration')
+      const duration = parseInt(durationEl ? getTextContent(durationEl) : '4', 10)
+      const typeEl = querySelector(noteEl, 'type')
+      const type = typeEl ? getTextContent(typeEl) : 'quarter'
+      
+      // Check for ties and slurs
+      const notationsEl = querySelector(noteEl, 'notations')
+      const tieStartEl = notationsEl ? querySelector(notationsEl, 'tie[type="start"]') : null
+      const tieEndEl = notationsEl ? querySelector(notationsEl, 'tie[type="stop"]') : null
+      const slurStartEl = notationsEl ? querySelector(notationsEl, 'slur[type="start"]') : null
+      const slurEndEl = notationsEl ? querySelector(notationsEl, 'slur[type="stop"]') : null
+      
+      const tieStart = tieStartEl !== null
+      const tieEnd = tieEndEl !== null
+      const slurStart = slurStartEl !== null
+      const slurEnd = slurEndEl !== null
+      
+      // Check for articulations
+      const articulationsEl = notationsEl ? querySelector(notationsEl, 'articulations') : null
+      let articulation: string | null = null
+      if (articulationsEl) {
+        if (querySelector(articulationsEl, 'staccato')) articulation = 'staccato'
+        else if (querySelector(articulationsEl, 'accent')) articulation = 'accent'
+        else if (querySelector(articulationsEl, 'tenuto')) articulation = 'tenuto'
+        else if (querySelector(articulationsEl, 'staccatissimo')) articulation = 'staccatissimo'
+        else if (querySelector(articulationsEl, 'strong-accent')) articulation = 'marcato'
+      }
       
       const note: NoteData = {
         step,
@@ -96,7 +297,12 @@ function parseMusicXML(musicXML: string): NoteData[] {
         alter,
         duration,
         type,
-        position: currentPosition
+        position: currentPosition,
+        tieStart,
+        tieEnd,
+        slurStart,
+        slurEnd,
+        articulation
       }
       
       notes.push(note)
@@ -105,10 +311,11 @@ function parseMusicXML(musicXML: string): NoteData[] {
       currentPosition += duration / divisions
     })
     
-    return notes
+    console.log('[evaluator] parseMusicXML: Parsed', notes.length, 'notes')
+    return { notes, keySignatureFifths }
   } catch (error) {
-    console.error('Error parsing MusicXML:', error)
-    return []
+    console.error('[evaluator] Error parsing MusicXML:', error)
+    return { notes: [], keySignatureFifths: 0 }
   }
 }
 
@@ -162,9 +369,23 @@ function compareNotes(expected: NoteData, actual: NoteData, tolerance: number = 
     return false
   }
   
-  // Compare duration (with tolerance)
-  const durationDiff = Math.abs(expected.duration - actual.duration)
-  if (durationDiff > tolerance) {
+  // Compare duration type (quarter, half, etc.) instead of raw duration values
+  // because duration values are in "divisions" units which can differ between files
+  // The type field is standardized and consistent regardless of divisions
+  if (expected.type !== actual.type) {
+    return false
+  }
+  
+  // Also compare ties, slurs, and articulations for completeness
+  if (expected.tieStart !== actual.tieStart || expected.tieEnd !== actual.tieEnd) {
+    return false
+  }
+  
+  if (expected.slurStart !== actual.slurStart || expected.slurEnd !== actual.slurEnd) {
+    return false
+  }
+  
+  if (expected.articulation !== actual.articulation) {
     return false
   }
   
@@ -201,11 +422,21 @@ function alignNotes(expected: NoteData[], actual: NoteData[], tolerance: number 
       const expectedMIDI = noteToMIDI(expNote.step, expNote.octave, expNote.alter || 0)
       const actualMIDI = noteToMIDI(match.note.step, match.note.octave, match.note.alter || 0)
       
-      let errorType: 'pitch' | 'duration' | 'accidental' | 'missing' | 'extra' | undefined
+      let errorType: 'pitch' | 'duration' | 'accidental' | 'tie' | 'slur' | 'articulation' | 'missing' | 'extra' | undefined
       if (!isCorrect) {
+        // Determine the specific error type
         if (expectedMIDI !== actualMIDI) {
           errorType = 'pitch'
+        } else if (expNote.type !== match.note.type) {
+          errorType = 'duration'
+        } else if (expNote.tieStart !== match.note.tieStart || expNote.tieEnd !== match.note.tieEnd) {
+          errorType = 'tie'
+        } else if (expNote.slurStart !== match.note.slurStart || expNote.slurEnd !== match.note.slurEnd) {
+          errorType = 'slur'
+        } else if (expNote.articulation !== match.note.articulation) {
+          errorType = 'articulation'
         } else {
+          // Fallback to duration if we can't determine the specific error
           errorType = 'duration'
         }
       }
@@ -260,11 +491,21 @@ export function evaluateTransposition(
   studentMusicXML: string,
   transpositionSemitones: number
 ): EvaluationResult {
+  console.log('[evaluator] Starting evaluation, transposition semitones:', transpositionSemitones)
+  console.log('[evaluator] Reference MusicXML length:', referenceMusicXML.length)
+  console.log('[evaluator] Student MusicXML length:', studentMusicXML.length)
+  
   // Parse both MusicXML files
-  const referenceNotes = parseMusicXML(referenceMusicXML)
-  const studentNotes = parseMusicXML(studentMusicXML)
+  const referenceParseResult = parseMusicXML(referenceMusicXML)
+  const studentParseResult = parseMusicXML(studentMusicXML)
+  const referenceNotes = referenceParseResult.notes
+  const studentNotes = studentParseResult.notes
+  
+  console.log('[evaluator] Parsed reference notes:', referenceNotes.length)
+  console.log('[evaluator] Parsed student notes:', studentNotes.length)
   
   if (referenceNotes.length === 0) {
+    console.warn('[evaluator] No reference notes found, returning zero result')
     return {
       score: 0,
       totalNotes: 0,
@@ -277,11 +518,27 @@ export function evaluateTransposition(
     }
   }
   
+  if (studentNotes.length === 0) {
+    console.warn('[evaluator] No student notes found, returning zero result')
+    return {
+      score: 0,
+      totalNotes: referenceNotes.length,
+      correctNotes: 0,
+      incorrectNotes: 0,
+      missingNotes: referenceNotes.length,
+      extraNotes: 0,
+      details: [],
+      percentage: 0
+    }
+  }
+  
   // Apply transposition to reference
   const transposedReference = transposeNotes(referenceNotes, transpositionSemitones)
+  console.log('[evaluator] Transposed reference notes:', transposedReference.length)
   
   // Align and compare notes
   const comparisons = alignNotes(transposedReference, studentNotes)
+  console.log('[evaluator] Comparisons:', comparisons.length)
   
   // Calculate statistics
   const correctNotes = comparisons.filter(c => c.isCorrect).length
@@ -290,8 +547,11 @@ export function evaluateTransposition(
   const extraNotes = comparisons.filter(c => c.errorType === 'extra').length
   const totalNotes = transposedReference.length
   
+  console.log('[evaluator] Stats - correct:', correctNotes, 'incorrect:', incorrectNotes, 'missing:', missingNotes, 'extra:', extraNotes, 'total:', totalNotes)
+  
   // Calculate score (correct notes / total notes)
   const score = totalNotes > 0 ? (correctNotes / totalNotes) * 100 : 0
+  console.log('[evaluator] Final score:', score)
   
   return {
     score: Math.round(score),

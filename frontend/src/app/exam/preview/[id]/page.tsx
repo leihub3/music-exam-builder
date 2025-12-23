@@ -481,12 +481,22 @@ export default function PreviewExamPage() {
                                             <div className="space-y-2 text-sm">
                                               {lacData.audio_file_path && (
                                                 <p className="text-gray-600">
-                                                  Audio file available. Students will listen and complete the blanks.
+                                                  Audio file available. Students will listen to the audio.
                                                 </p>
                                               )}
                                               {lacData.incomplete_score_path && (
                                                 <p className="text-gray-600">
-                                                  Incomplete score available for students to reference.
+                                                  Incomplete score provided. Students will complete it using the notation editor.
+                                                </p>
+                                              )}
+                                              {lacData.complete_score_path && (
+                                                <p className="text-gray-600 text-green-700">
+                                                  ✓ Complete score reference available for auto-grading.
+                                                </p>
+                                              )}
+                                              {!lacData.complete_score_path && (
+                                                <p className="text-gray-600 text-yellow-700">
+                                                  ⚠ No complete score reference - will require manual grading.
                                                 </p>
                                               )}
                                             </div>

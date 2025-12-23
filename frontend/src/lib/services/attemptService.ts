@@ -72,7 +72,10 @@ class AttemptService {
             multiple_choice:multiple_choice_questions(*),
             listening:listening_questions(*),
             transposition:transposition_questions(*),
-            orchestration:orchestration_questions(*)
+            orchestration:orchestration_questions(*),
+            listen_and_write:listen_and_write_questions(*),
+            listen_and_repeat:listen_and_repeat_questions(*),
+            listen_and_complete:listen_and_complete_questions(*)
           )
         )
       `)
@@ -190,7 +193,7 @@ class AttemptService {
   }
 
   /**
-   * Auto-grade objective questions (True/False, Multiple Choice)
+   * Auto-grade objective questions (True/False, Multiple Choice, Listen and Complete)
    */
   async autoGradeObjectiveQuestions(attemptId: string) {
     // Get all answers for the attempt
@@ -202,7 +205,8 @@ class AttemptService {
           *,
           section:exam_sections(section_type),
           true_false:true_false_questions(*),
-          multiple_choice:multiple_choice_questions(*)
+          multiple_choice:multiple_choice_questions(*),
+          listen_and_complete:listen_and_complete_questions(*)
         )
       `)
       .eq('attempt_id', attemptId)
@@ -224,6 +228,48 @@ class AttemptService {
         const correctIndex = question.multiple_choice?.[0]?.correct_option_index
         isCorrect = answer.answer?.selectedIndex === correctIndex
         pointsEarned = isCorrect ? question.points : 0
+      } else if (sectionType === 'LISTEN_AND_COMPLETE') {
+        // Auto-grade Listen and Complete questions using MusicXML evaluation
+        const questionData = question.listen_and_complete?.[0]
+        const studentCompletedXML = answer.answer?.completedScore || answer.answer?.musicXML
+        
+        if (!studentCompletedXML || !questionData?.complete_score_path) {
+          // Cannot auto-grade without complete score reference - skip
+          return
+        }
+
+        try {
+          // Load complete score reference
+          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || process.env.SUPABASE_URL
+          if (!supabaseUrl) {
+            console.error('Supabase URL not configured')
+            return
+          }
+
+          const completeScoreUrl = `${supabaseUrl}/storage/v1/object/public/notation-files/${questionData.complete_score_path}`
+          const response = await fetch(completeScoreUrl)
+          
+          if (!response.ok) {
+            console.error('Failed to load complete score reference')
+            return
+          }
+
+          const completeScoreXML = await response.text()
+          
+          // Use notation evaluator to compare (similar to transposition evaluation)
+          // For now, use simple comparison - can be enhanced with partial credit logic
+          // Import the evaluator function
+          const { evaluateTransposition } = await import('@/lib/notation/evaluator')
+          const evaluation = evaluateTransposition(completeScoreXML, studentCompletedXML, 0)
+          
+          // Calculate points based on percentage (round to nearest integer)
+          pointsEarned = Math.round((evaluation.percentage / 100) * question.points)
+          isCorrect = evaluation.percentage >= 90 // Consider 90%+ as correct
+        } catch (error) {
+          console.error('Error auto-grading Listen and Complete:', error)
+          // Skip this answer if evaluation fails
+          return
+        }
       } else {
         // Skip non-objective questions
         return

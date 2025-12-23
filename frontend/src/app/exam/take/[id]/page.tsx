@@ -26,6 +26,8 @@ export default function TakeExamPage() {
   const [attempt, setAttempt] = useState<ExamAttempt | null>(null)
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0)
   const [answers, setAnswers] = useState<Record<string, any>>({})
+  const [savedAnswers, setSavedAnswers] = useState<Set<string>>(new Set())
+  const [savingAnswer, setSavingAnswer] = useState<string | null>(null)
   const [timeStarted, setTimeStarted] = useState<Date>(new Date())
   const [timeRemaining, setTimeRemaining] = useState<number | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -36,9 +38,15 @@ export default function TakeExamPage() {
 
   // Timer
   useEffect(() => {
-    if (!exam?.durationMinutes) return
+    // Get durationMinutes - handle both snake_case and camelCase
+    const durationMinutes = exam?.durationMinutes ?? exam?.duration_minutes
+    
+    if (!durationMinutes || durationMinutes <= 0) {
+      // No time limit - hide timer
+      setTimeRemaining(null)
+      return
+    }
 
-    const durationMinutes = exam.durationMinutes
     const interval = setInterval(() => {
       const elapsed = Math.floor((Date.now() - timeStarted.getTime()) / 1000)
       const total = durationMinutes * 60
@@ -58,13 +66,28 @@ export default function TakeExamPage() {
     try {
       // Get exam details
       const examResponse = await api.getExam(examId)
-      setExam(examResponse.data)
+      const examData = examResponse.data
+      
+      // Ensure durationMinutes is set correctly (handle both formats)
+      if (examData && !examData.durationMinutes && examData.duration_minutes !== undefined) {
+        examData.durationMinutes = examData.duration_minutes
+      }
+      
+      setExam(examData)
 
       // Start or resume attempt
       const attemptResponse = await api.startAttempt(examId)
       setAttempt(attemptResponse.data)
       
-      setTimeStarted(new Date(attemptResponse.data.startedAt))
+      // Parse startedAt - handle both ISO string and Date object
+      const startedAt = attemptResponse.data.startedAt || attemptResponse.data.started_at
+      setTimeStarted(new Date(startedAt))
+      
+      // Initialize timer if exam has duration
+      const durationMinutes = examData?.durationMinutes ?? examData?.duration_minutes
+      if (durationMinutes && durationMinutes > 0) {
+        setTimeRemaining(durationMinutes * 60) // Initialize with full duration
+      }
     } catch (err: any) {
       console.error('Error starting exam:', err)
       alert('Failed to start exam')
@@ -82,6 +105,80 @@ export default function TakeExamPage() {
 
   const handleAnswerChange = (questionId: string, answer: any) => {
     setAnswers(prev => ({ ...prev, [questionId]: answer }))
+    // Remove from saved answers if answer changes after being saved
+    setSavedAnswers(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(questionId)
+      return newSet
+    })
+  }
+
+  const handleSaveAnswer = async (questionId: string) => {
+    if (!attempt || !answers[questionId]) {
+      alert('Please provide an answer before saving.')
+      return
+    }
+    
+    const question = getAllQuestions().find(q => q.id === questionId)
+    if (!question) return
+
+    setSavingAnswer(questionId)
+    
+    try {
+      const answerData = answers[questionId]
+      
+      // Validate that we have actual answer content
+      const hasTextAnswer = answerData.answer && answerData.answer.trim().length > 0
+      const hasMusicXML = answerData.musicXML || answerData.completedScore
+      const hasFile = answerData.file
+      
+      if (!hasTextAnswer && !hasMusicXML && !hasFile) {
+        alert('Please provide an answer before saving. The answer appears to be empty.')
+        setSavingAnswer(null)
+        return
+      }
+      
+      // If answer has MusicXML, convert to file for upload
+      // Handle both musicXML (from Transposition) and completedScore (from Listen and Complete)
+      let fileToUpload = answerData.file
+      const musicXMLContent = answerData.musicXML || answerData.completedScore
+      if (musicXMLContent && !fileToUpload) {
+        // Validate MusicXML content is not empty
+        if (musicXMLContent.trim().length === 0) {
+          alert('The MusicXML content is empty. Please complete your answer before saving.')
+          setSavingAnswer(null)
+          return
+        }
+        
+        // Create a Blob from MusicXML string
+        const blob = new Blob([musicXMLContent], { type: 'application/xml' })
+        fileToUpload = new File([blob], answerData.fileName || 'score.musicxml', { type: 'application/xml' })
+      }
+      
+      console.log('Saving answer:', {
+        questionId,
+        hasTextAnswer,
+        hasMusicXML: !!musicXMLContent,
+        hasFile: !!fileToUpload,
+        musicXMLLength: musicXMLContent?.length || 0
+      })
+      
+      await api.submitAnswer({
+        attemptId: attempt.id,
+        questionId: question.id,
+        answer: answerData,
+        maxPoints: question.points,
+        file: fileToUpload || undefined,
+      })
+      
+      // Mark as saved
+      setSavedAnswers(prev => new Set(prev).add(questionId))
+    } catch (err: any) {
+      console.error('Error saving answer:', err)
+      alert('Failed to save answer: ' + (err.message || 'Please try again.'))
+    } finally {
+      setSavingAnswer(null)
+    }
   }
 
   const handleNext = () => {
@@ -117,11 +214,13 @@ export default function TakeExamPage() {
           const answerData = answers[question.id]
           
           // If answer has MusicXML, convert to file for upload
+          // Handle both musicXML (from Transposition) and completedScore (from Listen and Complete)
           let fileToUpload = answerData.file
-          if (answerData.musicXML && !fileToUpload) {
+          const musicXMLContent = answerData.musicXML || answerData.completedScore
+          if (musicXMLContent && !fileToUpload) {
             // Create a Blob from MusicXML string
-            const blob = new Blob([answerData.musicXML], { type: 'application/xml' })
-            fileToUpload = new File([blob], answerData.fileName || 'transposition.musicxml', { type: 'application/xml' })
+            const blob = new Blob([musicXMLContent], { type: 'application/xml' })
+            fileToUpload = new File([blob], answerData.fileName || 'score.musicxml', { type: 'application/xml' })
           }
           
           await api.submitAnswer({
@@ -148,7 +247,11 @@ export default function TakeExamPage() {
     }
   }
 
-  const formatTime = (seconds: number) => {
+  const formatTime = (seconds: number | null) => {
+    if (seconds === null || isNaN(seconds) || seconds < 0) {
+      return '--:--'
+    }
+    
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
     const secs = seconds % 60
@@ -195,7 +298,7 @@ export default function TakeExamPage() {
                 Question {currentQuestionIndex + 1} of {questions.length}
               </p>
             </div>
-            {timeRemaining !== null && (
+            {timeRemaining !== null && exam?.durationMinutes && (
               <div className={`flex items-center space-x-2 px-4 py-2 rounded-lg ${
                 timeRemaining < 300 ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'
               }`}>
@@ -234,11 +337,17 @@ export default function TakeExamPage() {
               {exam.sections?.map(section => {
                 if (!section.questions?.some(q => q.id === currentQuestion.id)) return null
                 
-                const sectionType = section.sectionType
+                // Handle both camelCase and snake_case
+                const sectionType = section.sectionType || section.section_type
+                
+                // Debug logging
+                if (!sectionType) {
+                  console.warn('Section type not found for section:', section.id, section)
+                }
                 
                 // Hide question text for TRANSPOSITION and ORCHESTRATION questions
                 // as they have their own instruction displays
-                const shouldShowQuestionText = sectionType !== 'TRANSPOSITION' && sectionType !== 'ORCHESTRATION'
+                const shouldShowQuestionText = sectionType !== 'TRANSPOSITION' && sectionType !== 'ORCHESTRATION' && sectionType !== 'LISTEN_AND_COMPLETE'
                 
                 return (
                   <div key={section.id}>
@@ -303,11 +412,49 @@ export default function TakeExamPage() {
                         onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
                       />
                     )}
+                    {!sectionType && (
+                      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded">
+                        <p className="text-yellow-800 text-sm">
+                          Warning: Section type not found. Unable to render question component.
+                        </p>
+                        <p className="text-yellow-600 text-xs mt-1">
+                          Section ID: {section.id}
+                        </p>
+                      </div>
+                    )}
                   </div>
                 )
               })}
             </CardContent>
           </Card>
+        )}
+
+        {/* Save Answer Button */}
+        {answers[currentQuestion.id] && (
+          <div className="flex justify-center my-4">
+            <Button
+              onClick={() => handleSaveAnswer(currentQuestion.id)}
+              disabled={savingAnswer === currentQuestion.id || savedAnswers.has(currentQuestion.id)}
+              variant={savedAnswers.has(currentQuestion.id) ? "outline" : "default"}
+              className={savedAnswers.has(currentQuestion.id) ? "bg-green-50 border-green-200 text-green-700 hover:bg-green-100" : ""}
+            >
+              {savingAnswer === currentQuestion.id ? (
+                <>
+                  <span className="animate-spin mr-2">⏳</span>
+                  Saving...
+                </>
+              ) : savedAnswers.has(currentQuestion.id) ? (
+                <>
+                  <CheckCircle className="h-4 w-4 mr-2" />
+                  Answer Saved
+                </>
+              ) : (
+                <>
+                  Save Answer
+                </>
+              )}
+            </Button>
+          </div>
         )}
 
         {/* Navigation */}
@@ -354,8 +501,10 @@ export default function TakeExamPage() {
                   className={`p-2 rounded border-2 transition-colors ${
                     index === currentQuestionIndex
                       ? 'border-blue-600 bg-blue-50'
-                      : answers[q.id]
+                      : savedAnswers.has(q.id)
                       ? 'border-green-600 bg-green-50'
+                      : answers[q.id]
+                      ? 'border-yellow-500 bg-yellow-50'
                       : 'border-gray-300 hover:border-gray-400'
                   }`}
                 >
@@ -370,7 +519,11 @@ export default function TakeExamPage() {
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 border-2 border-green-600 bg-green-50 rounded" />
-                <span>Answered</span>
+                <span>Saved</span>
+              </div>
+              <div className="flex items-center space-x-2">
+                <div className="w-4 h-4 border-2 border-yellow-500 bg-yellow-50 rounded" />
+                <span>Unsaved</span>
               </div>
               <div className="flex items-center space-x-2">
                 <div className="w-4 h-4 border-2 border-gray-300 rounded" />

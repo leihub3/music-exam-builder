@@ -138,9 +138,7 @@ class QuestionService {
           question_id: question.id,
           audio_file_path: typeData.audioFilePath,
           incomplete_score_path: typeData.incompleteScorePath || null,
-          correct_answer: typeof typeData.correctAnswer === 'string' 
-            ? typeData.correctAnswer 
-            : JSON.stringify(typeData.correctAnswer),
+          complete_score_path: typeData.completeScorePath || null,
           blank_positions: typeData.blankPositions || null
         }
         break
@@ -366,9 +364,7 @@ class QuestionService {
           question_id: questionId,
           audio_file_path: typeData.audioFilePath || null,
           incomplete_score_path: typeData.incompleteScorePath || null,
-          correct_answer: typeof typeData.correctAnswer === 'string' 
-            ? typeData.correctAnswer 
-            : JSON.stringify(typeData.correctAnswer),
+          complete_score_path: typeData.completeScorePath || null,
           blank_positions: typeData.blankPositions || null
         }
         break

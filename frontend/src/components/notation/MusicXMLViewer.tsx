@@ -286,55 +286,85 @@ export function MusicXMLViewer({
         keySignatureExtraWidth = keySignatureFifths === 7 ? 150 : keySignatureFifths === 6 ? 110 : ((keySignatureFifths - 4) * 35)
       }
       
-      // Calculate dynamic measure widths based on note durations
+      // Calculate dynamic measure widths based on note durations and count
       // Smaller durations (eighth, 16th, 32nd, 64th) need significantly more space
       const calculateMeasureWidth = (measureInfo: { notes: Element[] }, isFirstMeasure: boolean): number => {
-        const baseWidth = 160 // Base width for whole/half notes (reduced from 200)
-        let maxWidth = baseWidth
+        const baseWidth = 180 // Base width for whole/half notes
+        let totalBeats = 0
+        let maxNoteWidth = baseWidth
         let hasSmallNotes = false
+        const noteCount = measureInfo.notes.length
         
-        // Check all notes in this measure for smaller durations
+        // Calculate total beats and determine width based on note types
         measureInfo.notes.forEach(noteEl => {
           const typeEl = noteEl.querySelector('type')
           const type = typeEl ? typeEl.textContent?.toLowerCase() || 'quarter' : 'quarter'
           
-          // Increase width significantly for smaller note values
-          // These notes need much more horizontal space
+          // Map note types to beats for width calculation
+          const beatsMap: Record<string, number> = {
+            'whole': 4,
+            'half': 2,
+            'quarter': 1,
+            'eighth': 0.5,
+            '16th': 0.25,
+            '32nd': 0.125,
+            '64th': 0.0625
+          }
+          
+          totalBeats += beatsMap[type] || 1
+          
+          // Increase width for smaller note values
           if (type === '64th') {
-            maxWidth = Math.max(maxWidth, baseWidth * 3.5) // 250% more width for 64th notes
+            maxNoteWidth = Math.max(maxNoteWidth, baseWidth * 4)
             hasSmallNotes = true
           } else if (type === '32nd') {
-            maxWidth = Math.max(maxWidth, baseWidth * 2.8) // 180% more width for 32nd notes
+            maxNoteWidth = Math.max(maxNoteWidth, baseWidth * 3)
             hasSmallNotes = true
           } else if (type === '16th') {
-            maxWidth = Math.max(maxWidth, baseWidth * 2.2) // 120% more width for 16th notes
+            maxNoteWidth = Math.max(maxNoteWidth, baseWidth * 2.5)
             hasSmallNotes = true
           } else if (type === 'eighth') {
-            maxWidth = Math.max(maxWidth, baseWidth * 1.6) // 60% more width for eighth notes
+            maxNoteWidth = Math.max(maxNoteWidth, baseWidth * 2)
             hasSmallNotes = true
           } else if (type === 'quarter') {
-            maxWidth = Math.max(maxWidth, baseWidth * 1.2) // 20% more for quarter notes
+            maxNoteWidth = Math.max(maxNoteWidth, baseWidth * 1.5)
           }
         })
         
+        // Calculate width based on note count - more notes need more space
+        // For 4/4 time: 4 quarter notes = 4 beats, need more width than 2 half notes
+        let calculatedWidth = maxNoteWidth
+        
+        // Scale width based on number of notes (more notes = more horizontal space needed)
+        if (noteCount > 1) {
+          // Each additional note adds space, but with diminishing returns
+          const noteCountMultiplier = 1 + (noteCount - 1) * 0.3
+          calculatedWidth = maxNoteWidth * noteCountMultiplier
+        }
+        
+        // Ensure minimum width based on total beats (for 4/4: 4 beats should fill the measure)
+        // A measure with 4 quarter notes needs more width than one with 2 half notes
+        const beatsBasedWidth = baseWidth * Math.max(1, totalBeats / 4) * 1.4
+        calculatedWidth = Math.max(calculatedWidth, beatsBasedWidth)
+        
         // Add extra padding if measure contains many small notes
-        if (hasSmallNotes && measureInfo.notes.length > 4) {
-          maxWidth = maxWidth * 1.2 // Additional 20% for measures with many small notes
+        if (hasSmallNotes && noteCount > 4) {
+          calculatedWidth = calculatedWidth * 1.3
         }
         
         // Add extra width for first measure if key signature is large
         if (isFirstMeasure && keySignatureExtraWidth > 0) {
-          maxWidth += keySignatureExtraWidth
+          calculatedWidth += keySignatureExtraWidth
         }
         
-        return Math.ceil(maxWidth) // Round up to ensure enough space
+        return Math.ceil(calculatedWidth) // Round up to ensure enough space
       }
       
       // Calculate width for each measure
       const measureWidths = measureData.map((measureInfo, index) => {
         if (measureInfo.notes.length === 0) {
           // Empty measures also get extra width if first measure has large key signature
-          const baseWidth = 160
+          const baseWidth = 180
           return index === 0 && keySignatureExtraWidth > 0 ? baseWidth + keySignatureExtraWidth : baseWidth
         }
         return calculateMeasureWidth(measureInfo, index === 0)
@@ -817,16 +847,18 @@ export function MusicXMLViewer({
           const isFirstMeasureOfLine = false // Viewer doesn't have multi-line support yet
           let clefKeyTimeWidth = 0
           if (isFirstMeasure || isFirstMeasureOfLine) {
-            clefKeyTimeWidth = 60 // Base width for clef
+            clefKeyTimeWidth = 70 // Base width for clef
             // Add width for key signature based on number of accidentals
             if (keySignatureFifths > 0) {
-              clefKeyTimeWidth += 20 + (keySignatureFifths * 12)
+              clefKeyTimeWidth += 25 + (keySignatureFifths * 15)
             }
-            clefKeyTimeWidth += 40 // Time signature
+            clefKeyTimeWidth += 50 // Time signature
           }
-          const padding = (isFirstMeasure || isFirstMeasureOfLine) ? 15 : 40
+          const padding = (isFirstMeasure || isFirstMeasureOfLine) ? 20 : 50
           // Calculate formatter width to properly space notes within the measure
-          const formatWidth = Math.max(150, currentMeasureWidth - clefKeyTimeWidth - padding)
+          // Use at least 70% of available measure width for formatting notes
+          const availableWidth = currentMeasureWidth - clefKeyTimeWidth - padding
+          const formatWidth = Math.max(200, Math.floor(availableWidth * 0.75))
           
           // Format WITHOUT automatic beaming - we'll create beams manually
           // Clear any existing beams first

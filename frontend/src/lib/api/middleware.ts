@@ -51,18 +51,43 @@ export async function authenticateUser(request: NextRequest): Promise<Authentica
   }
 
   // Get user profile with role using admin client (bypasses RLS)
-  const { data: profile, error: profileError } = await supabaseAdmin
+  let { data: profile, error: profileError } = await supabaseAdmin
     .from('profiles')
     .select('*')
     .eq('id', user.id)
-    .single()
+    .maybeSingle() // Use maybeSingle() instead of single() to avoid error on 0 rows
 
-  if (profileError) {
-    console.error('Profile lookup error:', profileError.message)
-    console.error('Profile error details:', profileError)
-    console.error('User ID:', user.id)
-    console.error('User email:', user.email)
-    throw new Error(`User profile not found: ${profileError.message}`)
+  // If profile doesn't exist, try to create it (in case trigger didn't fire)
+  if (profileError || !profile) {
+    console.warn('Profile not found for user, attempting to create:', {
+      userId: user.id,
+      email: user.email,
+      error: profileError?.message
+    })
+    
+    // Try to create the profile with default STUDENT role
+    const { data: newProfile, error: createError } = await supabaseAdmin
+      .from('profiles')
+      .insert({
+        id: user.id,
+        email: user.email || '',
+        first_name: user.user_metadata?.first_name || '',
+        last_name: user.user_metadata?.last_name || '',
+        role: 'STUDENT' // Default role
+      })
+      .select()
+      .single()
+    
+    if (createError) {
+      console.error('Failed to create profile:', createError.message)
+      // If creation fails, still throw original error
+      if (profileError) {
+        throw new Error(`User profile not found and could not be created: ${profileError.message}`)
+      }
+      throw new Error(`User profile not found and could not be created: ${createError.message}`)
+    }
+    
+    profile = newProfile
   }
   
   if (!profile) {

@@ -29,8 +29,21 @@ export default function SectionQuestionsPage() {
   const loadSection = async () => {
     try {
       const response = await api.getSection(sectionId)
-      setSection(response.data)
-      setQuestions(response.data.questions || [])
+      const sectionData = response.data
+      
+      // Transform snake_case to camelCase if needed
+      if (sectionData && !sectionData.sectionType && sectionData.section_type) {
+        sectionData.sectionType = sectionData.section_type
+      }
+      if (sectionData && !sectionData.orderIndex && sectionData.order_index !== undefined) {
+        sectionData.orderIndex = sectionData.order_index
+      }
+      if (sectionData && !sectionData.sectionCategory && sectionData.section_category) {
+        sectionData.sectionCategory = sectionData.section_category
+      }
+      
+      setSection(sectionData)
+      setQuestions(sectionData.questions || [])
     } catch (err: any) {
       console.error('Error loading section:', err)
       setError('Failed to load section')
@@ -81,7 +94,7 @@ export default function SectionQuestionsPage() {
           <div className="mb-6">
             <QuestionEditor
               sectionId={sectionId}
-              sectionType={section.sectionType}
+              sectionType={(section as any).sectionType || (section as any).section_type}
               onSaved={() => {
                 setShowAddQuestion(false)
                 loadSection()
@@ -110,7 +123,7 @@ export default function SectionQuestionsPage() {
                 question={question}
                 index={index}
                 sectionId={sectionId}
-                sectionType={section?.sectionType}
+                sectionType={(section as any)?.sectionType || (section as any)?.section_type}
                 onUpdated={loadSection}
                 onDeleted={loadSection}
               />

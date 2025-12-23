@@ -12,6 +12,8 @@ import { ArrowLeft, Save, CheckCircle, FileMusic, Music } from 'lucide-react'
 import { formatDate } from '@/lib/utils'
 import { TranspositionEvaluator } from '@/components/grading/TranspositionEvaluator'
 import { TranspositionGradingView } from '@/components/grading/TranspositionGradingView'
+import { ListenAndCompleteGradingView } from '@/components/grading/ListenAndCompleteGradingView'
+import { ListenAndCompleteEvaluator } from '@/components/grading/ListenAndCompleteEvaluator'
 import JSZip from 'jszip'
 import type { ExamAttempt, StudentAnswer } from '@music-exam-builder/shared/types'
 
@@ -530,8 +532,65 @@ export default function GradeAttemptPage() {
                         </p>
                       ) : sectionType === 'MULTIPLE_CHOICE' ? (
                         <p className="font-medium">{answer.answer?.selectedOption}</p>
-                      ) : sectionType === 'LISTEN_AND_WRITE' || sectionType === 'LISTEN_AND_COMPLETE' ? (
+                      ) : sectionType === 'LISTEN_AND_WRITE' ? (
                         <p className="font-medium">{answer.answer?.answer || 'No answer provided'}</p>
+                      ) : sectionType === 'LISTEN_AND_COMPLETE' ? (
+                        <>
+                          <ListenAndCompleteGradingView 
+                            answer={answer}
+                            question={question}
+                            onLoadMusicXML={loadMusicXMLFile}
+                          />
+                          
+                          {/* Listen and Complete Evaluator for Teachers */}
+                          <div className="mt-6 pt-6 border-t">
+                            <ListenAndCompleteEvaluator
+                              question={question}
+                              studentAnswer={answer}
+                              onEvaluationComplete={(result) => {
+                                // Update the grade based on evaluation result
+                                const suggestedPoints = Math.round((result.score / 100) * answer.maxPoints)
+                                handleGradeChange(answer.id, 'points', suggestedPoints)
+                                
+                                // Build detailed feedback including all evaluated aspects
+                                const feedbackParts = [
+                                  `Automatic evaluation: ${result.percentage}% correct.`,
+                                  `${result.correctNotes} correct notes, ${result.incorrectNotes} incorrect notes, ${result.missingNotes} missing notes, ${result.extraNotes} extra notes.`
+                                ]
+                                
+                                // Add breakdown of error types if there are incorrect notes
+                                if (result.incorrectNotes > 0 && result.details) {
+                                  const errorTypes = result.details
+                                    .filter(d => !d.isCorrect && d.errorType)
+                                    .reduce((acc: Record<string, number>, d) => {
+                                      if (d.errorType) {
+                                        acc[d.errorType] = (acc[d.errorType] || 0) + 1
+                                      }
+                                      return acc
+                                    }, {})
+                                  
+                                  const errorLabels: Record<string, string> = {
+                                    'pitch': 'pitch errors',
+                                    'duration': 'duration errors',
+                                    'tie': 'tie errors',
+                                    'slur': 'slur errors',
+                                    'articulation': 'articulation errors'
+                                  }
+                                  
+                                  const errorBreakdown = Object.entries(errorTypes)
+                                    .map(([type, count]) => `${count} ${errorLabels[type] || type}`)
+                                    .join(', ')
+                                  
+                                  if (errorBreakdown) {
+                                    feedbackParts.push(`Error breakdown: ${errorBreakdown}.`)
+                                  }
+                                }
+                                
+                                handleGradeChange(answer.id, 'feedback', feedbackParts.join(' '))
+                              }}
+                            />
+                          </div>
+                        </>
                       ) : sectionType === 'LISTEN_AND_REPEAT' ? (
                         <div>
                           <p className="font-medium">

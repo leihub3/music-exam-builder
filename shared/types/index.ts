@@ -159,8 +159,10 @@ export interface ListenAndCompleteQuestionData {
   questionId: string;
   audioFilePath: string;
   incompleteScorePath?: string;
-  correctAnswer: string | string[];
-  blankPositions?: number[];
+  incompleteScoreMusicXML?: string; // For editor-created incomplete scores
+  completeScorePath?: string; // Reference complete score for evaluation
+  completeScoreMusicXML?: string; // Reference complete score for evaluation
+  blankPositions?: number[]; // Which notes/positions are blanks (for extraction)
 }
 
 export interface RubricItem {

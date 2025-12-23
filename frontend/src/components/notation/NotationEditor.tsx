@@ -710,17 +710,16 @@ export function NotationEditor({
         return
       }
 
-      // Check if the new note/rest can fit in current measure
-      if (!canFitInMeasure(currentMeasure, selectedDuration, selectedDot)) {
-        alert(`No hay espacio en el Compás ${currentMeasure + 1}. Selecciona otro compás o agrega más compases.`)
-        return
-      }
-      
       const durationMap: Record<string, number> = { 'w': 4, 'h': 2, 'q': 1, '8': 0.5, '16': 0.25 }
       const beatsPerMeasure = getBeatsPerMeasure()
       
-      // If adding a rest, add it directly without pitch calculation
+      // If adding a rest, check for space and add it directly without pitch calculation
       if (editMode === 'rest' || isRest) {
+        // Check if the new rest can fit in current measure
+        if (!canFitInMeasure(currentMeasure, selectedDuration, selectedDot)) {
+          alert(`No hay espacio en el Compás ${currentMeasure + 1}. Selecciona otro compás o agrega más compases.`)
+          return
+        }
         const newNote: Note = {
           id: `rest-${Date.now()}-${Math.random()}`,
           pitch: 'rest',
@@ -757,24 +756,55 @@ export function NotationEditor({
       const pitch = calculatePitchFromPosition(x, y)
       
       if (pitch) {
-        const newNote: Note = {
-          id: `note-${Date.now()}-${Math.random()}`,
-          pitch: pitch,
-          duration: selectedDuration,
-          accidental: selectedAccidental,
-          articulation: selectedArticulation,
-          dot: selectedDot,
-          stave: 0,
-          x: notes.length,
-          measure: currentMeasure,
-          isRest: false
+        // Check if there's a rest of the same duration in the current measure that we can replace
+        const notesInCurrentMeasure = notes.filter(n => (n.measure || 0) === currentMeasure)
+        const restToReplace = notesInCurrentMeasure.find(
+          n => n.isRest && n.duration === selectedDuration && n.dot === selectedDot
+        )
+        
+        let newNotes: Note[]
+        if (restToReplace) {
+          // Replace the rest with the note
+          newNotes = notes.map(n => 
+            n.id === restToReplace.id 
+              ? {
+                  ...n,
+                  id: `note-${Date.now()}-${Math.random()}`,
+                  pitch,
+                  accidental: selectedAccidental,
+                  articulation: selectedArticulation,
+                  isRest: false
+                }
+              : n
+          )
+        } else {
+          // Check if we can add a new note (if measure has space)
+          if (!canFitInMeasure(currentMeasure, selectedDuration, selectedDot)) {
+            alert(`No hay espacio en el Compás ${currentMeasure + 1}. Haz clic en un descanso para eliminarlo primero, selecciona otro compás, o agrega más compases.`)
+            return
+          }
+          
+          // Add new note
+          const newNote: Note = {
+            id: `note-${Date.now()}-${Math.random()}`,
+            pitch: pitch,
+            duration: selectedDuration,
+            accidental: selectedAccidental,
+            articulation: selectedArticulation,
+            dot: selectedDot,
+            stave: 0,
+            x: notes.length,
+            measure: currentMeasure,
+            isRest: false
+          }
+          newNotes = [...notes, newNote]
         }
-        const newNotes = [...notes, newNote]
+        
         updateNotes(newNotes)
         
         // Calculate if measure is now full
-        const notesInCurrentMeasure = newNotes.filter(n => (n.measure || 0) === currentMeasure)
-        const totalBeats = notesInCurrentMeasure.reduce((sum, note) => {
+        const notesInCurrentMeasureAfter = newNotes.filter(n => (n.measure || 0) === currentMeasure)
+        const totalBeats = notesInCurrentMeasureAfter.reduce((sum, note) => {
           const baseDuration = durationMap[note.duration] || 1
           return sum + (note.dot ? baseDuration * 1.5 : baseDuration)
         }, 0)
@@ -1895,7 +1925,13 @@ export function NotationEditor({
     if (readOnly) return
     
     const note = notes.find(n => n.id === noteId)
-    if (!note || note.isRest) return
+    if (!note) return
+    
+    // Allow selecting rests for deletion (useful for "Listen and Complete" exercises)
+    if (note.isRest) {
+      setSelectedNote(noteId)
+      return
+    }
 
     // Update articulation selector when selecting a note
     setSelectedArticulation(note.articulation || null)

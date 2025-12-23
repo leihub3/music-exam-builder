@@ -1,4 +1,40 @@
 import { supabaseAdmin } from '@/lib/supabase/admin'
+// Helper function to transform exam from database (snake_case) to frontend (camelCase)
+function transformSection(section: any): any {
+  if (!section) return section
+  
+  return {
+    ...section,
+    sectionType: section.section_type !== undefined ? section.section_type : section.sectionType,
+    sectionCategory: section.section_category !== undefined ? section.section_category : section.sectionCategory,
+    orderIndex: section.order_index !== undefined ? section.order_index : section.orderIndex,
+    examId: section.exam_id !== undefined ? section.exam_id : section.examId,
+    createdAt: section.created_at !== undefined ? section.created_at : section.createdAt,
+    updatedAt: section.updated_at !== undefined ? section.updated_at : section.updatedAt,
+    questions: section.questions ? section.questions.map((q: any) => q) : section.questions
+  }
+}
+
+function transformExam(exam: any): any {
+  if (!exam) return exam
+  
+  const transformed = {
+    ...exam,
+    isPublished: exam.is_published !== undefined ? exam.is_published : exam.isPublished,
+    durationMinutes: exam.duration_minutes !== undefined ? exam.duration_minutes : exam.durationMinutes,
+    passingScore: exam.passing_score !== undefined ? exam.passing_score : exam.passingScore,
+    totalPoints: exam.total_points !== undefined ? exam.total_points : exam.totalPoints,
+    createdAt: exam.created_at !== undefined ? exam.created_at : exam.createdAt,
+    updatedAt: exam.updated_at !== undefined ? exam.updated_at : exam.updatedAt,
+    institutionId: exam.institution_id !== undefined ? exam.institution_id : exam.institutionId,
+    createdBy: exam.created_by !== undefined ? exam.created_by : exam.createdBy,
+    availableFrom: exam.available_from !== undefined ? exam.available_from : exam.availableFrom,
+    availableUntil: exam.available_until !== undefined ? exam.available_until : exam.availableUntil,
+    sections: exam.sections ? exam.sections.map(transformSection) : exam.sections
+  }
+  
+  return transformed
+}
 
 class ExamService {
   /**
@@ -54,7 +90,8 @@ class ExamService {
     const { data, error } = await query
 
     if (error) throw error
-    return data
+    // Transform exam data from snake_case to camelCase
+    return transformExam(data)
   }
 
   /**
@@ -132,8 +169,8 @@ class ExamService {
       throw new Error('Failed to update exam - no rows affected')
     }
     
-    // Return the first (and should be only) updated exam
-    return data[0]
+    // Transform snake_case to camelCase for frontend
+    return transformExam(data[0])
   }
 
   /**

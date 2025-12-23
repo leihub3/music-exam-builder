@@ -36,6 +36,11 @@ export function QuestionEditor({
   const [questionText, setQuestionText] = useState('')
   const [points, setPoints] = useState('1')
   
+  // Debug: Log sectionType to help troubleshoot
+  useEffect(() => {
+    console.log('QuestionEditor - sectionType:', sectionType)
+  }, [sectionType])
+  
   // Initialize typeData based on section type
   const getInitialTypeData = () => {
     switch (sectionType) {
@@ -54,7 +59,7 @@ export function QuestionEditor({
       case 'LISTEN_AND_REPEAT':
         return { audioFilePath: '', expectedNotes: [''], noteFormat: 'solfege', tolerance: 'strict' }
       case 'LISTEN_AND_COMPLETE':
-        return { audioFilePath: '', correctAnswer: '', blankPositions: undefined }
+        return { audioFilePath: '', incompleteScorePath: '', completeScorePath: '', blankPositions: undefined }
       default:
         return {}
     }
@@ -171,7 +176,7 @@ export function QuestionEditor({
           loadedTypeData = {
             audioFilePath: lac.audio_file_path || '',
             incompleteScorePath: lac.incomplete_score_path || '',
-            correctAnswer: lac.correct_answer || '',
+            completeScorePath: lac.complete_score_path || '',
             blankPositions: Array.isArray(lac.blank_positions) ? lac.blank_positions : undefined
           }
         }
@@ -275,6 +280,13 @@ export function QuestionEditor({
 
           {/* Type-specific editors */}
           <div className="border-t pt-4">
+            {!sectionType && (
+              <div className="p-4 bg-yellow-50 border border-yellow-200 rounded">
+                <p className="text-sm text-yellow-800">
+                  Warning: No section type detected. Please ensure the section has a valid exercise type.
+                </p>
+              </div>
+            )}
             {sectionType === 'TRUE_FALSE' && (
               <TrueFalseEditor value={typeData} onChange={setTypeData} />
             )}

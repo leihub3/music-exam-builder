@@ -31,12 +31,27 @@ export async function POST(request: NextRequest) {
 
     const transposition = transpositionSemitones || 0
 
+    console.log('[API] evaluate-transposition: Starting evaluation')
+    console.log('[API] evaluate-transposition: Reference XML length:', referenceMusicXML.length)
+    console.log('[API] evaluate-transposition: Student XML length:', studentMusicXML.length)
+    console.log('[API] evaluate-transposition: Transposition semitones:', transposition)
+
     // Evaluate the transposition
     const result = await evaluateTransposition(
       referenceMusicXML,
       studentMusicXML,
       transposition
     )
+
+    console.log('[API] evaluate-transposition: Evaluation result:', {
+      score: result.score,
+      totalNotes: result.totalNotes,
+      correctNotes: result.correctNotes,
+      incorrectNotes: result.incorrectNotes,
+      missingNotes: result.missingNotes,
+      extraNotes: result.extraNotes,
+      percentage: result.percentage
+    })
 
     return NextResponse.json({
       success: true,
