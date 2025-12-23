@@ -359,6 +359,7 @@ export default function TakeExamPage() {
                     
                     {sectionType === 'TRUE_FALSE' && (
                       <TrueFalseAnswer
+                        question={currentQuestion}
                         value={answers[currentQuestion.id]}
                         onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
                       />

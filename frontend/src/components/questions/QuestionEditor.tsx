@@ -110,7 +110,9 @@ export function QuestionEditor({
         const tf = getFirstItem(questionAny.true_false)
         if (tf) {
           loadedTypeData = { 
-            correctAnswer: tf.correct_answer !== undefined ? tf.correct_answer : true 
+            correctAnswer: tf.correct_answer !== undefined ? tf.correct_answer : true,
+            audioFilePath: tf.audio_file_path || undefined,
+            notationFilePath: tf.notation_file_path || undefined
           }
         }
       } else if (questionAny.multiple_choice) {
@@ -204,6 +206,13 @@ export function QuestionEditor({
     setLoading(true)
 
     try {
+      // Validate True/False Ear Training: if audio is provided, notation is required
+      if (sectionType === 'TRUE_FALSE' && typeData?.audioFilePath && !typeData?.notationFilePath) {
+        alert('Notation file is required when an audio file is provided for Ear Training questions. Students need a score to compare with the audio.')
+        setLoading(false)
+        return
+      }
+
       const questionData = {
         sectionId,
         questionText,

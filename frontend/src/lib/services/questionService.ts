@@ -65,7 +65,9 @@ class QuestionService {
           : true
         typeRecord = {
           question_id: question.id,
-          correct_answer: correctAnswer
+          correct_answer: correctAnswer,
+          audio_file_path: typeData.audioFilePath || null,
+          notation_file_path: typeData.notationFilePath || null
         }
         break
 
@@ -291,7 +293,9 @@ class QuestionService {
         typeTable = 'true_false_questions'
         updateData = { 
           question_id: questionId,
-          correct_answer: typeData.correctAnswer !== undefined ? typeData.correctAnswer : true
+          correct_answer: typeData.correctAnswer !== undefined ? typeData.correctAnswer : true,
+          audio_file_path: typeData.audioFilePath !== undefined ? typeData.audioFilePath : null,
+          notation_file_path: typeData.notationFilePath !== undefined ? typeData.notationFilePath : null
         }
         break
 

@@ -108,6 +108,8 @@ export type QuestionTypeData =
 export interface TrueFalseQuestionData {
   questionId: string;
   correctAnswer: boolean;
+  audioFilePath?: string;        // Optional audio file path for Ear Training
+  notationFilePath?: string;     // Optional notation file path (MusicXML/PDF/image)
 }
 
 export interface MultipleChoiceQuestionData {
