@@ -27,6 +27,9 @@ const EXERCISE_TYPES: Record<SectionCategory, { value: SectionType; label: strin
     { value: 'MULTIPLE_CHOICE', label: 'Multiple Choice', description: 'Multiple choice questions' },
     { value: 'TRUE_FALSE', label: 'True/False', description: 'True or false questions' },
     { value: 'LISTEN_AND_COMPLETE', label: 'Listen and Complete', description: 'Listen and complete the melody' },
+    { value: 'INTERVAL_DICTATION', label: 'Interval Dictation', description: 'Identify intervals by ear' },
+    { value: 'CHORD_DICTATION', label: 'Chord Dictation', description: 'Identify chords by ear' },
+    { value: 'PROGRESSION_DICTATION', label: 'Progression Dictation', description: 'Identify chord progressions by ear' },
   ],
   RHYTHM: [
     { value: 'LISTEN_AND_WRITE', label: 'Listen and Write', description: 'Listen and write the rhythm' },

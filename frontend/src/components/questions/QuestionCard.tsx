@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Edit, Trash2 } from 'lucide-react'
 import { api } from '@/lib/api'
 import { QuestionEditor } from './QuestionEditor'
-import type { Question, QuestionBackendResponse } from '@music-exam-builder/shared/types'
+import type { Question, QuestionBackendResponse, SectionType } from '@music-exam-builder/shared/types'
 
 interface QuestionCardProps {
   question: Question

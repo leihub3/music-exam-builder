@@ -48,7 +48,10 @@ export type SectionType =
   | 'ORCHESTRATION'
   | 'LISTEN_AND_WRITE'
   | 'LISTEN_AND_REPEAT'
-  | 'LISTEN_AND_COMPLETE';
+  | 'LISTEN_AND_COMPLETE'
+  | 'INTERVAL_DICTATION'
+  | 'CHORD_DICTATION'
+  | 'PROGRESSION_DICTATION';
 
 export interface Exam {
   id: string;
@@ -157,6 +160,68 @@ export interface QuestionBackendResponse {
   };
   listen_and_repeat?: unknown;
   listen_and_complete?: unknown;
+  interval_dictation?: Array<{
+    example_play_limit?: number;
+    tempo?: number;
+    note_duration?: number;
+    instrument?: string;
+  }> | {
+    example_play_limit?: number;
+    tempo?: number;
+    note_duration?: number;
+    instrument?: string;
+  };
+  interval_dictation_items?: Array<{
+    id?: string;
+    question_id?: string;
+    root_note?: string;
+    correct_interval?: string;
+    interval_direction?: string;
+    order_index?: number;
+  }> | {
+    id?: string;
+    question_id?: string;
+    root_note?: string;
+    correct_interval?: string;
+    interval_direction?: string;
+    order_index?: number;
+  };
+  chord_dictation?: Array<{
+    correct_chord?: string;
+    chord_voicing?: string;
+    chord_type?: string;
+    octave?: number;
+    example_play_limit?: number;
+    tempo?: number;
+    duration?: number;
+    instrument?: string;
+  }> | {
+    correct_chord?: string;
+    chord_voicing?: string;
+    chord_type?: string;
+    octave?: number;
+    example_play_limit?: number;
+    tempo?: number;
+    duration?: number;
+    instrument?: string;
+  };
+  progression_dictation?: Array<{
+    correct_progression?: string[];
+    progression_key?: string;
+    progression_notation?: string;
+    example_play_limit?: number;
+    tempo?: number;
+    chord_duration?: number;
+    instrument?: string;
+  }> | {
+    correct_progression?: string[];
+    progression_key?: string;
+    progression_notation?: string;
+    example_play_limit?: number;
+    tempo?: number;
+    chord_duration?: number;
+    instrument?: string;
+  };
   typeData?: QuestionTypeData;
 }
 
@@ -168,7 +233,27 @@ export type QuestionTypeData =
   | OrchestrationQuestionData
   | ListenAndWriteQuestionData
   | ListenAndRepeatQuestionData
-  | ListenAndCompleteQuestionData;
+  | ListenAndCompleteQuestionData
+  | IntervalDictationQuestionData
+  | ChordDictationQuestionData
+  | ProgressionDictationQuestionData;
+
+// Interval Dictation - supports multiple intervals per question
+export interface IntervalDictationItem {
+  rootNote?: string;
+  correctInterval: string;
+  intervalDirection?: 'ascending' | 'descending' | 'harmonic';
+  orderIndex: number;
+}
+
+export interface IntervalDictationQuestionData {
+  questionId: string;
+  intervals: IntervalDictationItem[]; // Array of intervals for this question
+  examplePlayLimit?: number; // Number of times students can play each interval example
+  tempo?: number; // BPM (shared across all intervals)
+  noteDuration?: number; // Duration in seconds (shared across all intervals)
+  instrument?: 'piano' | 'sine' | 'synth'; // Instrument sound (shared across all intervals)
+}
 
 export interface TrueFalseQuestionData {
   questionId: string;

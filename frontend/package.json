@@ -21,6 +21,7 @@
     "@radix-ui/react-toast": "^1.1.5",
     "@supabase/auth-helpers-nextjs": "^0.8.7",
     "@supabase/supabase-js": "^2.38.0",
+    "@tonaljs/tonal": "^4.10.0",
     "@xmldom/xmldom": "^0.8.11",
     "axios": "^1.6.2",
     "class-variance-authority": "^0.7.0",
@@ -35,6 +36,7 @@
     "react-hook-form": "^7.48.2",
     "tailwind-merge": "^2.1.0",
     "tailwindcss-animate": "^1.0.7",
+    "tone": "^15.1.22",
     "uuid": "^9.0.1",
     "vexflow": "^4.2.3",
     "zod": "^3.22.4"

@@ -456,7 +456,7 @@ export default function PreviewExamPage() {
                                       <div className="space-y-2">
                                         <p className="text-sm font-medium text-gray-700">
                                           Answer Type: Listen and Write
-                                          {sectionCategory === 'EAR_TRAINING' && ' (Ear Training)'}
+                                          {section?.sectionCategory === 'EAR_TRAINING' && ' (Ear Training)'}
                                         </p>
                                         {(() => {
                                           const lawData = Array.isArray((question as any).listen_and_write)
@@ -498,6 +498,81 @@ export default function PreviewExamPage() {
                                                   {lawData.answer_format === 'notes' ? 'Note Names' : 'Free Text'}
                                                 </p>
                                               )}
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
+
+                                    {sectionType === 'INTERVAL_DICTATION' && (
+                                      <div className="space-y-2">
+                                        <p className="text-sm font-medium text-gray-700">Answer Type: Interval Dictation</p>
+                                        {(() => {
+                                          const intDictData = Array.isArray((question as any).interval_dictation)
+                                            ? (question as any).interval_dictation[0]
+                                            : (question as any).interval_dictation;
+                                          return intDictData && (
+                                            <div className="space-y-2 text-sm">
+                                              <p className="text-gray-600">
+                                                Root Note: {intDictData.root_note || 'C4'} | 
+                                                Interval: {intDictData.correct_interval} | 
+                                                Direction: {intDictData.interval_direction || 'ascending'}
+                                              </p>
+                                              <p className="text-gray-600">
+                                                Example play limit: {intDictData.example_play_limit ?? 5} times
+                                              </p>
+                                              <p className="text-green-600 font-medium">
+                                                ✓ Audio will be generated automatically from these parameters
+                                              </p>
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
+
+                                    {sectionType === 'CHORD_DICTATION' && (
+                                      <div className="space-y-2">
+                                        <p className="text-sm font-medium text-gray-700">Answer Type: Chord Dictation</p>
+                                        {(() => {
+                                          const chDictData = Array.isArray((question as any).chord_dictation)
+                                            ? (question as any).chord_dictation[0]
+                                            : (question as any).chord_dictation;
+                                          return chDictData && (
+                                            <div className="space-y-2 text-sm">
+                                              <p className="text-gray-600">
+                                                Correct Chord: {chDictData.correct_chord} | 
+                                                Octave: {chDictData.octave ?? 4}
+                                              </p>
+                                              <p className="text-gray-600">
+                                                Example play limit: {chDictData.example_play_limit ?? 5} times
+                                              </p>
+                                              <p className="text-green-600 font-medium">
+                                                ✓ Audio will be generated automatically from these parameters
+                                              </p>
+                                            </div>
+                                          );
+                                        })()}
+                                      </div>
+                                    )}
+
+                                    {sectionType === 'PROGRESSION_DICTATION' && (
+                                      <div className="space-y-2">
+                                        <p className="text-sm font-medium text-gray-700">Answer Type: Progression Dictation</p>
+                                        {(() => {
+                                          const progDictData = Array.isArray((question as any).progression_dictation)
+                                            ? (question as any).progression_dictation[0]
+                                            : (question as any).progression_dictation;
+                                          return progDictData && (
+                                            <div className="space-y-2 text-sm">
+                                              <p className="text-gray-600">
+                                                Progression: {progDictData.correct_progression?.join(' → ') || 'N/A'} in {progDictData.progression_key || 'C major'}
+                                              </p>
+                                              <p className="text-gray-600">
+                                                Example play limit: {progDictData.example_play_limit ?? 3} times
+                                              </p>
+                                              <p className="text-green-600 font-medium">
+                                                ✓ Audio will be generated automatically from these parameters
+                                              </p>
                                             </div>
                                           );
                                         })()}

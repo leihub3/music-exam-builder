@@ -14,6 +14,9 @@ import { OrchestrationEditor } from './OrchestrationEditor'
 import { ListenAndWriteEditor } from './ListenAndWriteEditor'
 import { ListenAndRepeatEditor } from './ListenAndRepeatEditor'
 import { ListenAndCompleteEditor } from './ListenAndCompleteEditor'
+import { IntervalDictationEditor } from './IntervalDictationEditor'
+import { ChordDictationEditor } from './ChordDictationEditor'
+import { ProgressionDictationEditor } from './ProgressionDictationEditor'
 import type { SectionType, QuestionTypeData, QuestionBackendResponse } from '@music-exam-builder/shared/types'
 
 interface QuestionEditorProps {
@@ -69,6 +72,40 @@ export function QuestionEditor({
         return { audioFilePath: '', expectedNotes: [''], noteFormat: 'solfege', tolerance: 'strict' }
       case 'LISTEN_AND_COMPLETE':
         return { audioFilePath: '', incompleteScorePath: '', completeScorePath: '', blankPositions: undefined }
+      case 'INTERVAL_DICTATION':
+        return {
+          intervals: [{
+            rootNote: 'C4',
+            correctInterval: '',
+            intervalDirection: 'ascending',
+            orderIndex: 0
+          }],
+          examplePlayLimit: 5,
+          tempo: 120,
+          noteDuration: 1.0,
+          instrument: 'sine'
+        }
+      case 'CHORD_DICTATION':
+        return {
+          correctChord: '',
+          chordVoicing: 'root',
+          chordType: 'triad',
+          octave: 4,
+          examplePlayLimit: 5,
+          tempo: 120,
+          duration: 2.0,
+          instrument: 'sine'
+        }
+      case 'PROGRESSION_DICTATION':
+        return {
+          correctProgression: [],
+          progressionKey: 'C major',
+          progressionNotation: 'roman',
+          examplePlayLimit: 3,
+          tempo: 120,
+          chordDuration: 2.0,
+          instrument: 'sine'
+        }
       default:
         return {}
     }
@@ -174,6 +211,77 @@ export function QuestionEditor({
             referenceScoreMusicXML: law.reference_score_music_xml || undefined
           }
         }
+      } else if (questionBackend.interval_dictation) {
+        const intDict = getFirstItem(questionBackend.interval_dictation)
+        
+        // Load interval items
+        let intervals: Array<{ rootNote?: string; correctInterval: string; intervalDirection?: string; orderIndex: number }> = []
+        if (questionBackend.interval_dictation_items) {
+          const items = Array.isArray(questionBackend.interval_dictation_items) 
+            ? questionBackend.interval_dictation_items 
+            : [questionBackend.interval_dictation_items]
+          intervals = items
+            .filter((item: any) => item && item.correct_interval)
+            .map((item: any) => ({
+              rootNote: item.root_note || 'C4',
+              correctInterval: item.correct_interval || '',
+              intervalDirection: item.interval_direction || 'ascending',
+              orderIndex: item.order_index ?? 0
+            }))
+            .sort((a: any, b: any) => a.orderIndex - b.orderIndex)
+        }
+        
+        // Fallback: if no items but old format exists, migrate it
+        if (intervals.length === 0 && intDict?.correct_interval) {
+          intervals = [{
+            rootNote: intDict.root_note || 'C4',
+            correctInterval: intDict.correct_interval || '',
+            intervalDirection: intDict.interval_direction || 'ascending',
+            orderIndex: 0
+          }]
+        }
+        
+        if (intDict || intervals.length > 0) {
+          loadedTypeData = {
+            intervals: intervals.length > 0 ? intervals : [{
+              rootNote: 'C4',
+              correctInterval: '',
+              intervalDirection: 'ascending',
+              orderIndex: 0
+            }],
+            examplePlayLimit: intDict?.example_play_limit ?? 5,
+            tempo: intDict?.tempo ?? 120,
+            noteDuration: intDict?.note_duration ?? 1.0,
+            instrument: intDict?.instrument || 'sine'
+          }
+        }
+      } else if (questionBackend.chord_dictation) {
+        const chDict = getFirstItem(questionBackend.chord_dictation)
+        if (chDict) {
+          loadedTypeData = {
+            correctChord: chDict.correct_chord || '',
+            chordVoicing: chDict.chord_voicing || 'root',
+            chordType: chDict.chord_type || 'triad',
+            octave: chDict.octave ?? 4,
+            examplePlayLimit: chDict.example_play_limit ?? 5,
+            tempo: chDict.tempo ?? 120,
+            duration: chDict.duration ?? 2.0,
+            instrument: chDict.instrument || 'sine'
+          }
+        }
+      } else if (questionBackend.progression_dictation) {
+        const progDict = getFirstItem(questionBackend.progression_dictation)
+        if (progDict) {
+          loadedTypeData = {
+            correctProgression: progDict.correct_progression || [],
+            progressionKey: progDict.progression_key || 'C major',
+            progressionNotation: progDict.progression_notation || 'roman',
+            examplePlayLimit: progDict.example_play_limit ?? 3,
+            tempo: progDict.tempo ?? 120,
+            chordDuration: progDict.chord_duration ?? 2.0,
+            instrument: progDict.instrument || 'sine'
+          }
+        }
       } else if (questionBackend.listen_and_repeat) {
         const lar = getFirstItem(questionBackend.listen_and_repeat)
         if (lar) {
@@ -265,6 +373,73 @@ export function QuestionEditor({
           const limit = parseInt(String(typeData.concertAPlayLimit), 10)
           if (isNaN(limit) || limit < 0 || limit > 20) {
             alert('Concert A play limit must be between 0 and 20.')
+            setLoading(false)
+            return
+          }
+        }
+      }
+
+      // Validate Interval Dictation
+      if (sectionType === 'INTERVAL_DICTATION') {
+        const intervals = (typeData as any)?.intervals
+        if (!intervals || !Array.isArray(intervals) || intervals.length === 0) {
+          alert('Please add at least one interval to the dictation question.')
+          setLoading(false)
+          return
+        }
+        
+        // Validate each interval has a correctInterval
+        for (let i = 0; i < intervals.length; i++) {
+          if (!intervals[i]?.correctInterval || !intervals[i].correctInterval.trim()) {
+            alert(`Please select a correct interval for interval ${i + 1}.`)
+            setLoading(false)
+            return
+          }
+        }
+        
+        if (typeData?.examplePlayLimit !== undefined) {
+          const limit = parseInt(String(typeData.examplePlayLimit), 10)
+          if (isNaN(limit) || limit < 1 || limit > 20) {
+            alert('Example play limit must be between 1 and 20.')
+            setLoading(false)
+            return
+          }
+        }
+      }
+
+      // Validate Chord Dictation
+      if (sectionType === 'CHORD_DICTATION') {
+        if (!typeData?.correctChord || !typeData.correctChord.trim()) {
+          alert('Please enter a correct chord for the dictation question.')
+          setLoading(false)
+          return
+        }
+        if (typeData?.examplePlayLimit !== undefined) {
+          const limit = parseInt(String(typeData.examplePlayLimit), 10)
+          if (isNaN(limit) || limit < 1 || limit > 20) {
+            alert('Example play limit must be between 1 and 20.')
+            setLoading(false)
+            return
+          }
+        }
+      }
+
+      // Validate Progression Dictation
+      if (sectionType === 'PROGRESSION_DICTATION') {
+        if (!typeData?.correctProgression || !Array.isArray(typeData.correctProgression) || typeData.correctProgression.length === 0) {
+          alert('Please add at least one chord to the progression.')
+          setLoading(false)
+          return
+        }
+        if (!typeData?.progressionKey || !typeData.progressionKey.trim()) {
+          alert('Please select a key for the progression.')
+          setLoading(false)
+          return
+        }
+        if (typeData?.examplePlayLimit !== undefined) {
+          const limit = parseInt(String(typeData.examplePlayLimit), 10)
+          if (isNaN(limit) || limit < 1 || limit > 20) {
+            alert('Example play limit must be between 1 and 20.')
             setLoading(false)
             return
           }
@@ -378,6 +553,15 @@ export function QuestionEditor({
             )}
             {sectionType === 'LISTEN_AND_COMPLETE' && (
               <ListenAndCompleteEditor value={typeData} onChange={setTypeData} />
+            )}
+            {sectionType === 'INTERVAL_DICTATION' && (
+              <IntervalDictationEditor value={typeData} onChange={setTypeData} />
+            )}
+            {sectionType === 'CHORD_DICTATION' && (
+              <ChordDictationEditor value={typeData} onChange={setTypeData} />
+            )}
+            {sectionType === 'PROGRESSION_DICTATION' && (
+              <ProgressionDictationEditor value={typeData} onChange={setTypeData} />
             )}
           </div>
 

@@ -55,6 +55,7 @@ class QuestionService {
     // Insert type-specific data
     let typeTable: string
     let typeRecord: any
+    let intervalItems: any[] | null = null // For INTERVAL_DICTATION
 
     switch (questionType) {
       case 'TRUE_FALSE':
@@ -150,6 +151,56 @@ class QuestionService {
         }
         break
 
+      case 'INTERVAL_DICTATION':
+        typeTable = 'interval_dictation_questions'
+        // Store shared settings in interval_dictation_questions
+        typeRecord = {
+          question_id: question.id,
+          example_play_limit: typeData.examplePlayLimit ?? 5,
+          tempo: typeData.tempo ?? 120,
+          note_duration: typeData.noteDuration ?? 1.0,
+          instrument: typeData.instrument || 'sine'
+        }
+        // Store interval items separately
+        const intervals = (typeData as any)?.intervals || []
+        intervalItems = intervals.map((interval: any, index: number) => ({
+          question_id: question.id,
+          root_note: interval.rootNote || 'C4',
+          correct_interval: interval.correctInterval,
+          interval_direction: interval.intervalDirection || 'ascending',
+          order_index: interval.orderIndex ?? index
+        }))
+        break
+
+      case 'CHORD_DICTATION':
+        typeTable = 'chord_dictation_questions'
+        typeRecord = {
+          question_id: question.id,
+          correct_chord: typeData.correctChord,
+          chord_voicing: typeData.chordVoicing || 'root',
+          chord_type: typeData.chordType || 'triad',
+          octave: typeData.octave ?? 4,
+          example_play_limit: typeData.examplePlayLimit ?? 5,
+          tempo: typeData.tempo ?? 120,
+          duration: typeData.duration ?? 2.0,
+          instrument: typeData.instrument || 'sine'
+        }
+        break
+
+      case 'PROGRESSION_DICTATION':
+        typeTable = 'progression_dictation_questions'
+        typeRecord = {
+          question_id: question.id,
+          correct_progression: typeData.correctProgression || [],
+          progression_key: typeData.progressionKey || 'C major',
+          progression_notation: typeData.progressionNotation || 'roman',
+          example_play_limit: typeData.examplePlayLimit ?? 3,
+          tempo: typeData.tempo ?? 120,
+          chord_duration: typeData.chordDuration ?? 2.0,
+          instrument: typeData.instrument || 'sine'
+        }
+        break
+
       default:
         throw new Error(`Invalid question type: ${type}`)
     }
@@ -164,6 +215,20 @@ class QuestionService {
       // Rollback question creation
       await supabaseAdmin.from('questions').delete().eq('id', question.id)
       throw typeError
+    }
+
+    // Insert interval items for INTERVAL_DICTATION
+    if (questionType === 'INTERVAL_DICTATION' && intervalItems && intervalItems.length > 0) {
+      const { error: itemsError } = await supabaseAdmin
+        .from('interval_dictation_items')
+        .insert(intervalItems)
+
+      if (itemsError) {
+        // Cleanup: delete the question and type data if items insert fails
+        await supabaseAdmin.from(typeTable).delete().eq('question_id', question.id)
+        await supabaseAdmin.from('questions').delete().eq('id', question.id)
+        throw itemsError
+      }
     }
 
     // Recalculate exam total points
@@ -199,7 +264,11 @@ class QuestionService {
         orchestration:orchestration_questions(*),
         listen_and_write:listen_and_write_questions(*),
         listen_and_repeat:listen_and_repeat_questions(*),
-        listen_and_complete:listen_and_complete_questions(*)
+        listen_and_complete:listen_and_complete_questions(*),
+        interval_dictation:interval_dictation_questions(*),
+        interval_dictation_items:interval_dictation_items(*),
+        chord_dictation:chord_dictation_questions(*),
+        progression_dictation:progression_dictation_questions(*)
       `)
       .eq('id', questionId)
       .single()
@@ -383,6 +452,70 @@ class QuestionService {
         }
         break
 
+      case 'INTERVAL_DICTATION':
+        typeTable = 'interval_dictation_questions'
+        updateData = {
+          question_id: questionId,
+          example_play_limit: typeData.examplePlayLimit ?? 5,
+          tempo: typeData.tempo ?? 120,
+          note_duration: typeData.noteDuration ?? 1.0,
+          instrument: typeData.instrument || 'sine'
+        }
+        // Update interval items separately
+        const intervals = (typeData as any)?.intervals || []
+        if (intervals.length > 0) {
+          // Delete existing items
+          await supabaseAdmin
+            .from('interval_dictation_items')
+            .delete()
+            .eq('question_id', questionId)
+          
+          // Insert new items
+          const intervalItems = intervals.map((interval: any, index: number) => ({
+            question_id: questionId,
+            root_note: interval.rootNote || 'C4',
+            correct_interval: interval.correctInterval,
+            interval_direction: interval.intervalDirection || 'ascending',
+            order_index: interval.orderIndex ?? index
+          }))
+          
+          const { error: itemsError } = await supabaseAdmin
+            .from('interval_dictation_items')
+            .insert(intervalItems)
+          
+          if (itemsError) throw itemsError
+        }
+        break
+
+      case 'CHORD_DICTATION':
+        typeTable = 'chord_dictation_questions'
+        updateData = {
+          question_id: questionId,
+          correct_chord: typeData.correctChord || '',
+          chord_voicing: typeData.chordVoicing || 'root',
+          chord_type: typeData.chordType || 'triad',
+          octave: typeData.octave ?? 4,
+          example_play_limit: typeData.examplePlayLimit ?? 5,
+          tempo: typeData.tempo ?? 120,
+          duration: typeData.duration ?? 2.0,
+          instrument: typeData.instrument || 'sine'
+        }
+        break
+
+      case 'PROGRESSION_DICTATION':
+        typeTable = 'progression_dictation_questions'
+        updateData = {
+          question_id: questionId,
+          correct_progression: typeData.correctProgression || [],
+          progression_key: typeData.progressionKey || 'C major',
+          progression_notation: typeData.progressionNotation || 'roman',
+          example_play_limit: typeData.examplePlayLimit ?? 3,
+          tempo: typeData.tempo ?? 120,
+          chord_duration: typeData.chordDuration ?? 2.0,
+          instrument: typeData.instrument || 'sine'
+        }
+        break
+
       default:
         throw new Error(`Invalid question type: ${type}`)
     }
@@ -497,7 +630,11 @@ class QuestionService {
         orchestration:orchestration_questions(*),
         listen_and_write:listen_and_write_questions(*),
         listen_and_repeat:listen_and_repeat_questions(*),
-        listen_and_complete:listen_and_complete_questions(*)
+        listen_and_complete:listen_and_complete_questions(*),
+        interval_dictation:interval_dictation_questions(*),
+        interval_dictation_items:interval_dictation_items(*),
+        chord_dictation:chord_dictation_questions(*),
+        progression_dictation:progression_dictation_questions(*)
       `)
       .eq('section_id', sectionId)
       .order('order_index', { ascending: true })

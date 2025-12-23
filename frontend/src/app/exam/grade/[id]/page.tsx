@@ -412,7 +412,11 @@ export default function GradeAttemptPage() {
               typeData: questionAny.typeData
             })
 
-            const isAutoGraded = sectionType === 'TRUE_FALSE' || sectionType === 'MULTIPLE_CHOICE'
+            const isAutoGraded = sectionType === 'TRUE_FALSE' || 
+                                 sectionType === 'MULTIPLE_CHOICE' ||
+                                 sectionType === 'INTERVAL_DICTATION' ||
+                                 sectionType === 'CHORD_DICTATION' ||
+                                 sectionType === 'PROGRESSION_DICTATION'
             const isGraded = answer.isGraded
 
             return (
@@ -634,6 +638,25 @@ export default function GradeAttemptPage() {
                               (as string: {answer.answer.answer})
                             </p>
                           )}
+                        </div>
+                      ) : sectionType === 'INTERVAL_DICTATION' ? (
+                        <div>
+                          <p className="font-medium">
+                            Student selected: <strong>{answer.answer?.selectedInterval || 'No answer provided'}</strong>
+                          </p>
+                        </div>
+                      ) : sectionType === 'CHORD_DICTATION' ? (
+                        <div>
+                          <p className="font-medium">
+                            Student selected: <strong>{answer.answer?.selectedChord || 'No answer provided'}</strong>
+                          </p>
+                        </div>
+                      ) : sectionType === 'PROGRESSION_DICTATION' ? (
+                        <div>
+                          <p className="font-medium mb-2">Student selected progression:</p>
+                          <div className="bg-gray-50 p-3 rounded border">
+                            <strong>{answer.answer?.selectedProgression?.join(' → ') || 'No answer provided'}</strong>
+                          </div>
                         </div>
                       ) : (
                         <p className="font-medium">{answer.answer?.answer || 'No answer provided'}</p>

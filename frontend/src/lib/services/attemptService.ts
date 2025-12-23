@@ -322,6 +322,54 @@ class AttemptService {
           console.error('Error auto-grading Listen and Write:', error)
           return // Skip this question if evaluation fails
         }
+      } else if (sectionType === 'INTERVAL_DICTATION') {
+        // Auto-grade Interval Dictation questions
+        const questionData = question.interval_dictation?.[0]
+        const studentAnswer = answer.answer?.selectedInterval
+        
+        if (!studentAnswer || !questionData?.correct_interval) {
+          return
+        }
+
+        isCorrect = studentAnswer === questionData.correct_interval
+        pointsEarned = isCorrect ? question.points : 0
+      } else if (sectionType === 'CHORD_DICTATION') {
+        // Auto-grade Chord Dictation questions
+        const questionData = question.chord_dictation?.[0]
+        const studentAnswer = answer.answer?.selectedChord
+        
+        if (!studentAnswer || !questionData?.correct_chord) {
+          return
+        }
+
+        // Normalize chord names for comparison (case-insensitive, trim)
+        const normalizedStudent = studentAnswer.trim().toLowerCase()
+        const normalizedCorrect = questionData.correct_chord.trim().toLowerCase()
+        
+        isCorrect = normalizedStudent === normalizedCorrect
+        pointsEarned = isCorrect ? question.points : 0
+      } else if (sectionType === 'PROGRESSION_DICTATION') {
+        // Auto-grade Progression Dictation questions
+        const questionData = question.progression_dictation?.[0]
+        const studentAnswer = answer.answer?.selectedProgression
+        
+        if (!studentAnswer || !questionData?.correct_progression) {
+          return
+        }
+
+        // Compare arrays (order matters for progressions)
+        const correctProg = questionData.correct_progression || []
+        const studentProg = Array.isArray(studentAnswer) ? studentAnswer : []
+        
+        if (correctProg.length !== studentProg.length) {
+          isCorrect = false
+          pointsEarned = 0
+        } else {
+          isCorrect = correctProg.every((chord: string, index: number) => 
+            chord.toLowerCase() === studentProg[index]?.toLowerCase()
+          )
+          pointsEarned = isCorrect ? question.points : 0
+        }
       } else {
         // Skip non-objective questions
         return

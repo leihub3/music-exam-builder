@@ -14,6 +14,9 @@ import { OrchestrationAnswer } from '@/components/answers/OrchestrationAnswer'
 import { ListenAndWriteAnswer } from '@/components/answers/ListenAndWriteAnswer'
 import { ListenAndRepeatAnswer } from '@/components/answers/ListenAndRepeatAnswer'
 import { ListenAndCompleteAnswer } from '@/components/answers/ListenAndCompleteAnswer'
+import { IntervalDictationAnswer } from '@/components/answers/IntervalDictationAnswer'
+import { ChordDictationAnswer } from '@/components/answers/ChordDictationAnswer'
+import { ProgressionDictationAnswer } from '@/components/answers/ProgressionDictationAnswer'
 import type { Exam, ExamAttempt, Question } from '@music-exam-builder/shared/types'
 
 export default function TakeExamPage() {
@@ -39,7 +42,7 @@ export default function TakeExamPage() {
   // Timer
   useEffect(() => {
     // Get durationMinutes - handle both snake_case and camelCase
-    const durationMinutes = exam?.durationMinutes ?? exam?.duration_minutes
+    const durationMinutes = exam?.durationMinutes ?? (exam as any)?.duration_minutes
     
     if (!durationMinutes || durationMinutes <= 0) {
       // No time limit - hide timer
@@ -131,8 +134,11 @@ export default function TakeExamPage() {
       const hasTextAnswer = answerData.answer && answerData.answer.trim().length > 0
       const hasMusicXML = answerData.musicXML || answerData.completedScore
       const hasFile = answerData.file
+      const hasSelectedInterval = answerData.selectedInterval
+      const hasSelectedChord = answerData.selectedChord
+      const hasSelectedProgression = answerData.selectedProgression && Array.isArray(answerData.selectedProgression) && answerData.selectedProgression.length > 0
       
-      if (!hasTextAnswer && !hasMusicXML && !hasFile) {
+      if (!hasTextAnswer && !hasMusicXML && !hasFile && !hasSelectedInterval && !hasSelectedChord && !hasSelectedProgression) {
         alert('Please provide an answer before saving. The answer appears to be empty.')
         setSavingAnswer(null)
         return
@@ -338,7 +344,7 @@ export default function TakeExamPage() {
                 if (!section.questions?.some(q => q.id === currentQuestion.id)) return null
                 
                 // Handle both camelCase and snake_case
-                const sectionType = section.sectionType || section.section_type
+                const sectionType = section.sectionType || (section as any).section_type
                 
                 // Debug logging
                 if (!sectionType) {
@@ -347,7 +353,13 @@ export default function TakeExamPage() {
                 
                 // Hide question text for TRANSPOSITION and ORCHESTRATION questions
                 // as they have their own instruction displays
-                const shouldShowQuestionText = sectionType !== 'TRANSPOSITION' && sectionType !== 'ORCHESTRATION' && sectionType !== 'LISTEN_AND_COMPLETE' && sectionType !== 'LISTEN_AND_WRITE'
+                const shouldShowQuestionText = sectionType !== 'TRANSPOSITION' && 
+                                               sectionType !== 'ORCHESTRATION' && 
+                                               sectionType !== 'LISTEN_AND_COMPLETE' && 
+                                               sectionType !== 'LISTEN_AND_WRITE' &&
+                                               sectionType !== 'INTERVAL_DICTATION' &&
+                                               sectionType !== 'CHORD_DICTATION' &&
+                                               sectionType !== 'PROGRESSION_DICTATION'
                 
                 return (
                   <div key={section.id}>
@@ -408,6 +420,27 @@ export default function TakeExamPage() {
                     )}
                     {sectionType === 'LISTEN_AND_COMPLETE' && (
                       <ListenAndCompleteAnswer
+                        question={currentQuestion}
+                        value={answers[currentQuestion.id]}
+                        onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
+                      />
+                    )}
+                    {sectionType === 'INTERVAL_DICTATION' && (
+                      <IntervalDictationAnswer
+                        question={currentQuestion}
+                        value={answers[currentQuestion.id]}
+                        onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
+                      />
+                    )}
+                    {sectionType === 'CHORD_DICTATION' && (
+                      <ChordDictationAnswer
+                        question={currentQuestion}
+                        value={answers[currentQuestion.id]}
+                        onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
+                      />
+                    )}
+                    {sectionType === 'PROGRESSION_DICTATION' && (
+                      <ProgressionDictationAnswer
                         question={currentQuestion}
                         value={answers[currentQuestion.id]}
                         onChange={(val) => handleAnswerChange(currentQuestion.id, val)}
