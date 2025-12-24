@@ -187,21 +187,28 @@ class ApiClient {
     maxPoints: number
     file?: File
   }) {
+    // Always use FormData since the API expects form data
+    const formData = new FormData()
+    formData.append('attemptId', data.attemptId)
+    formData.append('questionId', data.questionId)
+    formData.append('answer', JSON.stringify(data.answer))
+    formData.append('maxPoints', data.maxPoints.toString())
+    
     if (data.file) {
-      const formData = new FormData()
-      formData.append('attemptId', data.attemptId)
-      formData.append('questionId', data.questionId)
-      formData.append('answer', JSON.stringify(data.answer))
-      formData.append('maxPoints', data.maxPoints.toString())
       formData.append('submissionFile', data.file)
-
-      const response = await this.client.post('/attempts/answer', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      })
-      return response.data
     }
 
-    const response = await this.client.post('/attempts/answer', data)
+    // Axios automatically sets Content-Type with boundary for FormData
+    // Remove the default JSON Content-Type header so axios can set multipart/form-data automatically
+    const response = await this.client.post('/attempts/answer', formData, {
+      transformRequest: [(data, headers) => {
+        // Remove Content-Type header so axios sets it automatically for FormData with boundary
+        if (headers && headers['Content-Type']) {
+          delete headers['Content-Type']
+        }
+        return data
+      }],
+    })
     return response.data
   }
 

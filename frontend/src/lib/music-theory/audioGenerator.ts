@@ -170,15 +170,16 @@ export class MusicAudioGenerator {
       if (direction === 'harmonic') {
         // Play both notes simultaneously
         this.synth?.triggerAttackRelease([note1, note2], duration)
+        // Wait for harmonic interval to finish (only one duration since notes play together)
+        await new Promise(resolve => setTimeout(resolve, (noteDuration + 0.5) * 1000))
       } else {
         // Play sequentially
         const now = Tone.now()
         this.synth?.triggerAttackRelease(note1, duration, now)
         this.synth?.triggerAttackRelease(note2, duration, now + noteDuration)
+        // Wait for sequential interval to finish (two durations)
+        await new Promise(resolve => setTimeout(resolve, (noteDuration * 2 + 0.5) * 1000))
       }
-
-      // Wait for audio to finish
-      await new Promise(resolve => setTimeout(resolve, (noteDuration * 2 + 0.5) * 1000))
     } catch (error) {
       console.error('Error generating interval:', error)
       throw error

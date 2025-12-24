@@ -131,14 +131,36 @@ export default function TakeExamPage() {
       const answerData = answers[questionId]
       
       // Validate that we have actual answer content
-      const hasTextAnswer = answerData.answer && answerData.answer.trim().length > 0
+      // Check all possible answer formats for different question types
+      const hasTextAnswer = answerData.answer && typeof answerData.answer === 'string' && answerData.answer.trim().length > 0
       const hasMusicXML = answerData.musicXML || answerData.completedScore
       const hasFile = answerData.file
-      const hasSelectedInterval = answerData.selectedInterval
-      const hasSelectedChord = answerData.selectedChord
-      const hasSelectedProgression = answerData.selectedProgression && Array.isArray(answerData.selectedProgression) && answerData.selectedProgression.length > 0
       
-      if (!hasTextAnswer && !hasMusicXML && !hasFile && !hasSelectedInterval && !hasSelectedChord && !hasSelectedProgression) {
+      // True/False: value can be true or false (both are valid)
+      const hasTrueFalseAnswer = answerData.value !== undefined && typeof answerData.value === 'boolean'
+      
+      // Multiple Choice: selectedIndex is a number (0 or higher)
+      const hasMultipleChoiceAnswer = answerData.selectedIndex !== undefined && typeof answerData.selectedIndex === 'number' && answerData.selectedIndex >= 0
+      
+      // Listening: selectedOption or answer text
+      const hasListeningAnswer = answerData.selectedOption || hasTextAnswer
+      
+      // Interval Dictation: answers array with selectedInterval values
+      const hasIntervalDictationAnswer = answerData.answers && Array.isArray(answerData.answers) && 
+        answerData.answers.length > 0 && 
+        answerData.answers.some((a: any) => a.selectedInterval && a.selectedInterval.trim().length > 0)
+      
+      // Chord Dictation: answers array with selectedChord values
+      const hasChordDictationAnswer = answerData.answers && Array.isArray(answerData.answers) && 
+        answerData.answers.length > 0 && 
+        answerData.answers.some((a: any) => a.selectedChord && a.selectedChord.trim().length > 0)
+      
+      // Progression Dictation: selectedProgression array
+      const hasProgressionDictationAnswer = answerData.selectedProgression && Array.isArray(answerData.selectedProgression) && answerData.selectedProgression.length > 0
+      
+      if (!hasTextAnswer && !hasMusicXML && !hasFile && !hasTrueFalseAnswer && 
+          !hasMultipleChoiceAnswer && !hasListeningAnswer && !hasIntervalDictationAnswer && 
+          !hasChordDictationAnswer && !hasProgressionDictationAnswer) {
         alert('Please provide an answer before saving. The answer appears to be empty.')
         setSavingAnswer(null)
         return

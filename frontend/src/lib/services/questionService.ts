@@ -239,6 +239,20 @@ class QuestionService {
       }
     }
 
+    // Insert chord items for CHORD_DICTATION
+    if (questionType === 'CHORD_DICTATION' && chordItems && chordItems.length > 0) {
+      const { error: itemsError } = await supabaseAdmin
+        .from('chord_dictation_items')
+        .insert(chordItems)
+
+      if (itemsError) {
+        // Cleanup: delete the question and type data if items insert fails
+        await supabaseAdmin.from(typeTable).delete().eq('question_id', question.id)
+        await supabaseAdmin.from('questions').delete().eq('id', question.id)
+        throw itemsError
+      }
+    }
+
     // Recalculate exam total points
     const { data: section } = await supabaseAdmin
       .from('exam_sections')

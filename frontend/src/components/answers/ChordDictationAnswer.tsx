@@ -29,34 +29,99 @@ export function ChordDictationAnswer({ question, value, onChange }: ChordDictati
   let duration = 2.0
   let instrument = 'sine'
 
+  // Debug logging
+  console.log('ChordDictationAnswer - question data:', {
+    hasChordDictation: !!questionBackend.chord_dictation,
+    hasChordDictationItems: !!questionBackend.chord_dictation_items,
+    chordDictation: questionBackend.chord_dictation,
+    chordDictationItems: questionBackend.chord_dictation_items,
+    typeData: question.typeData
+  })
+
+  // Get shared settings from chord_dictation
+  let chordDictationData: any = null
   if (questionBackend.chord_dictation) {
     const chDataRaw = questionBackend.chord_dictation
-    const data = Array.isArray(chDataRaw) ? chDataRaw[0] : chDataRaw
-    examplePlayLimit = data?.example_play_limit ?? 5
-    tempo = data?.tempo ?? 120
-    duration = data?.duration ?? 2.0
-    instrument = data?.instrument || 'sine'
+    chordDictationData = Array.isArray(chDataRaw) ? chDataRaw[0] : chDataRaw
+    examplePlayLimit = chordDictationData?.example_play_limit ?? 5
+    tempo = chordDictationData?.tempo ?? 120
+    duration = chordDictationData?.duration ?? 2.0
+    instrument = chordDictationData?.instrument || 'sine'
   }
 
-  // Load chord items
-  if (questionBackend.chord_dictation_items) {
-    const items = Array.isArray(questionBackend.chord_dictation_items)
-      ? questionBackend.chord_dictation_items
-      : [questionBackend.chord_dictation_items]
+  // Load chord items from chord_dictation_items table
+  const itemsRaw = questionBackend.chord_dictation_items
+  if (itemsRaw) {
+    let items: any[] = []
     
-    chords = items
-      .filter((item: any) => item && item.correct_chord)
-      .map((item: any) => ({
-        correctChord: item.correct_chord || '',
-        chordVoicing: item.chord_voicing || 'root',
-        chordType: item.chord_type || 'triad',
-        octave: item.octave ?? 4,
-        orderIndex: item.order_index ?? 0
-      }))
-      .sort((a, b) => a.orderIndex - b.orderIndex)
+    // Handle different possible formats
+    if (Array.isArray(itemsRaw)) {
+      items = itemsRaw
+    } else if (typeof itemsRaw === 'object' && itemsRaw !== null) {
+      // Could be a single object or an object with nested structure
+      if (itemsRaw.correct_chord) {
+        items = [itemsRaw]
+      } else {
+        // Try to find items in nested structure
+        items = Object.values(itemsRaw).filter((v: any) => v && typeof v === 'object' && v.correct_chord) as any[]
+      }
+    }
+    
+    console.log('ChordDictationAnswer - processing items:', items, 'from raw:', itemsRaw)
+    
+    if (items.length > 0) {
+      chords = items
+        .filter((item: any) => item && item.correct_chord)
+        .map((item: any) => ({
+          correctChord: item.correct_chord || '',
+          chordVoicing: item.chord_voicing || 'root',
+          chordType: item.chord_type || 'triad',
+          octave: item.octave ?? 4,
+          orderIndex: item.order_index ?? 0
+        }))
+        .sort((a, b) => a.orderIndex - b.orderIndex)
+      
+      console.log('ChordDictationAnswer - mapped chords from items:', chords)
+    }
+  }
+  
+  // Fallback: If no items found, check old format in chord_dictation table
+  if (chords.length === 0 && chordDictationData?.correct_chord) {
+    console.log('ChordDictationAnswer - No items found, using old format from chord_dictation:', chordDictationData)
+    chords = [{
+      correctChord: chordDictationData.correct_chord || '',
+      chordVoicing: chordDictationData.chord_voicing || 'root',
+      chordType: chordDictationData.chord_type || 'triad',
+      octave: chordDictationData.octave ?? 4,
+      orderIndex: 0
+    }]
+    console.log('ChordDictationAnswer - migrated from old format:', chords)
   }
 
-  // Fallback to typeData if no items
+  // Fallback: Check old format in chord_dictation if no items found
+  if (chords.length === 0 && questionBackend.chord_dictation) {
+    const chDataRaw = questionBackend.chord_dictation
+    const oldData = Array.isArray(chDataRaw) ? chDataRaw[0] : chDataRaw
+    
+    // Check if old format has chord data
+    if (oldData?.correct_chord) {
+      console.log('ChordDictationAnswer - found old format data, migrating:', oldData)
+      chords = [{
+        correctChord: oldData.correct_chord || '',
+        chordVoicing: oldData.chord_voicing || 'root',
+        chordType: oldData.chord_type || 'triad',
+        octave: oldData.octave ?? 4,
+        orderIndex: 0
+      }]
+      examplePlayLimit = oldData.example_play_limit ?? examplePlayLimit
+      tempo = oldData.tempo ?? tempo
+      duration = oldData.duration ?? duration
+      instrument = oldData.instrument || instrument
+      console.log('ChordDictationAnswer - migrated from old format:', chords)
+    }
+  }
+
+  // Fallback to typeData if still no items
   if (chords.length === 0 && question.typeData) {
     const typeData = question.typeData as ChordDictationQuestionData
     chords = typeData.chords || []
@@ -64,7 +129,10 @@ export function ChordDictationAnswer({ question, value, onChange }: ChordDictati
     tempo = typeData.tempo ?? 120
     duration = typeData.duration ?? 2.0
     instrument = typeData.instrument || 'sine'
+    console.log('ChordDictationAnswer - using typeData fallback:', chords)
   }
+  
+  console.log('ChordDictationAnswer - final chords count:', chords.length)
 
   // Initialize answers if needed
   const answers = value?.answers || chords.map((_, index) => ({ chordIndex: index, selectedChord: '' }))

@@ -41,7 +41,15 @@ class ExamService {
             multiple_choice:multiple_choice_questions(*),
             listening:listening_questions(*),
             transposition:transposition_questions(*),
-            orchestration:orchestration_questions(*)
+            orchestration:orchestration_questions(*),
+            listen_and_write:listen_and_write_questions(*),
+            listen_and_repeat:listen_and_repeat_questions(*),
+            listen_and_complete:listen_and_complete_questions(*),
+            interval_dictation:interval_dictation_questions(*),
+            interval_dictation_items:interval_dictation_items(*),
+            chord_dictation:chord_dictation_questions(*),
+            chord_dictation_items:chord_dictation_items(*),
+            progression_dictation:progression_dictation_questions(*)
           )
         )
       `)
@@ -215,7 +223,15 @@ class ExamService {
           multiple_choice:multiple_choice_questions(*),
           listening:listening_questions(*),
           transposition:transposition_questions(*),
-          orchestration:orchestration_questions(*)
+          orchestration:orchestration_questions(*),
+          listen_and_write:listen_and_write_questions(*),
+          listen_and_repeat:listen_and_repeat_questions(*),
+          listen_and_complete:listen_and_complete_questions(*),
+          interval_dictation:interval_dictation_questions(*),
+          interval_dictation_items:interval_dictation_items(*),
+          chord_dictation:chord_dictation_questions(*),
+          chord_dictation_items:chord_dictation_items(*),
+          progression_dictation:progression_dictation_questions(*)
         )
       `)
       .eq('id', sectionId)
