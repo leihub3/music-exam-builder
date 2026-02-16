@@ -9,6 +9,9 @@ import { ArrowLeft, Eye, Clock, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { TrueFalseAnswer } from '@/components/answers/TrueFalseAnswer'
 import { MultipleChoiceAnswer } from '@/components/answers/MultipleChoiceAnswer'
+import { ListenAndWriteAnswer } from '@/components/answers/ListenAndWriteAnswer'
+import { IntervalDictationAnswer } from '@/components/answers/IntervalDictationAnswer'
+import { ChordDictationAnswer } from '@/components/answers/ChordDictationAnswer'
 import type { Exam, Question } from '@music-exam-builder/shared/types'
 
 export default function PreviewExamPage() {
@@ -380,44 +383,25 @@ export default function PreviewExamPage() {
                                     )}
 
                                     {sectionType === 'LISTEN_AND_WRITE' && (
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium text-gray-700">
-                                          Answer Type: Listen and Write
-                                          {section?.sectionCategory === 'EAR_TRAINING' && ' (Ear Training)'}
-                                        </p>
+                                      <div className="space-y-4">
+                                        <ListenAndWriteAnswer
+                                          question={question}
+                                          value={{}}
+                                          onChange={() => {}}
+                                        />
                                         {(() => {
                                           const lawData = Array.isArray((question as any).listen_and_write)
                                             ? (question as any).listen_and_write[0]
                                             : (question as any).listen_and_write;
-                                          return lawData && (
-                                            <div className="space-y-2 text-sm">
-                                              {lawData.audio_file_path && (
-                                                <div className="p-4 bg-gray-50 rounded-lg border-2 border-dashed border-gray-300">
-                                                  <p className="text-gray-600 mb-2">Audio file available</p>
-                                                  <audio controls className="w-full mt-2" src={(() => {
-                                                    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-                                                    if (supabaseUrl && lawData.audio_file_path) {
-                                                      return `${supabaseUrl}/storage/v1/object/public/audio-files/${lawData.audio_file_path}`;
-                                                    }
-                                                    return '';
-                                                  })()}>
-                                                    Your browser does not support the audio element.
-                                                  </audio>
-                                                </div>
-                                              )}
-                                              {lawData.concert_a_play_limit !== undefined && (
-                                                <p className="text-gray-600">
-                                                  Concert A plays: {lawData.concert_a_play_limit ?? 3}
-                                                </p>
-                                              )}
+                                          if (!lawData) return null;
+                                          return (
+                                            <div className="text-sm text-gray-600 pt-2 border-t border-gray-200 space-y-1">
                                               {lawData.reference_score_path || lawData.reference_score_music_xml ? (
                                                 <p className="text-green-600 font-medium">
                                                   ✓ Reference score available for auto-grading
                                                 </p>
                                               ) : (
-                                                <p className="text-gray-600">
-                                                  Manual grading (no reference score provided)
-                                                </p>
+                                                <p>Manual grading (no reference score provided)</p>
                                               )}
                                               {lawData.answer_format && (
                                                 <p>
@@ -432,53 +416,28 @@ export default function PreviewExamPage() {
                                     )}
 
                                     {sectionType === 'INTERVAL_DICTATION' && (
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium text-gray-700">Answer Type: Interval Dictation</p>
-                                        {(() => {
-                                          const intDictData = Array.isArray((question as any).interval_dictation)
-                                            ? (question as any).interval_dictation[0]
-                                            : (question as any).interval_dictation;
-                                          return intDictData && (
-                                            <div className="space-y-2 text-sm">
-                                              <p className="text-gray-600">
-                                                Root Note: {intDictData.root_note || 'C4'} | 
-                                                Interval: {intDictData.correct_interval} | 
-                                                Direction: {intDictData.interval_direction || 'ascending'}
-                                              </p>
-                                              <p className="text-gray-600">
-                                                Example play limit: {intDictData.example_play_limit ?? 5} times
-                                              </p>
-                                              <p className="text-green-600 font-medium">
-                                                ✓ Audio will be generated automatically from these parameters
-                                              </p>
-                                            </div>
-                                          );
-                                        })()}
+                                      <div className="space-y-4">
+                                        <IntervalDictationAnswer
+                                          question={question}
+                                          value={{}}
+                                          onChange={() => {}}
+                                        />
+                                        <p className="text-sm text-green-600 font-medium pt-2 border-t border-gray-200">
+                                          ✓ Audio is generated automatically from the interval parameters
+                                        </p>
                                       </div>
                                     )}
 
                                     {sectionType === 'CHORD_DICTATION' && (
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium text-gray-700">Answer Type: Chord Dictation</p>
-                                        {(() => {
-                                          const chDictData = Array.isArray((question as any).chord_dictation)
-                                            ? (question as any).chord_dictation[0]
-                                            : (question as any).chord_dictation;
-                                          return chDictData && (
-                                            <div className="space-y-2 text-sm">
-                                              <p className="text-gray-600">
-                                                Correct Chord: {chDictData.correct_chord} | 
-                                                Octave: {chDictData.octave ?? 4}
-                                              </p>
-                                              <p className="text-gray-600">
-                                                Example play limit: {chDictData.example_play_limit ?? 5} times
-                                              </p>
-                                              <p className="text-green-600 font-medium">
-                                                ✓ Audio will be generated automatically from these parameters
-                                              </p>
-                                            </div>
-                                          );
-                                        })()}
+                                      <div className="space-y-4">
+                                        <ChordDictationAnswer
+                                          question={question}
+                                          value={{}}
+                                          onChange={() => {}}
+                                        />
+                                        <p className="text-sm text-green-600 font-medium pt-2 border-t border-gray-200">
+                                          ✓ Audio is generated automatically (block → arpeggio per play)
+                                        </p>
                                       </div>
                                     )}
 
