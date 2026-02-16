@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Eye, Clock, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { TrueFalseAnswer } from '@/components/answers/TrueFalseAnswer'
+import { MultipleChoiceAnswer } from '@/components/answers/MultipleChoiceAnswer'
 import type { Exam, Question } from '@music-exam-builder/shared/types'
 
 export default function PreviewExamPage() {
@@ -227,91 +228,22 @@ export default function PreviewExamPage() {
 
                                     {sectionType === 'MULTIPLE_CHOICE' && (
                                       <div className="space-y-4">
-                                        <p className="text-sm font-medium text-gray-700">
-                                          Answer Type: Multiple Choice {section?.sectionCategory === 'EAR_TRAINING' ? '(Ear Training)' : ''}
-                                        </p>
+                                        <MultipleChoiceAnswer
+                                          question={question}
+                                          value={{}}
+                                          onChange={() => {}}
+                                        />
                                         {(() => {
-                                          // multiple_choice can be an object or an array with one element
-                                          const mcData = Array.isArray((question as any).multiple_choice) 
+                                          const mcData = Array.isArray((question as any).multiple_choice)
                                             ? (question as any).multiple_choice[0]
                                             : (question as any).multiple_choice;
-                                          
-                                          if (!mcData) {
-                                            return <p className="text-sm text-gray-500 italic">Multiple choice data not loaded</p>;
-                                          }
-
-                                          // Display audio if present
-                                          const audioFilePath = mcData.audio_file_path;
-                                          const optionNotationFilePaths = Array.isArray(mcData.option_notation_file_paths) 
-                                            ? mcData.option_notation_file_paths 
-                                            : [];
-                                          const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-                                          
-                                          // Options can be stored as JSONB array or already parsed
-                                          let options: string[] = [];
-                                          if (Array.isArray(mcData.options)) {
-                                            options = mcData.options;
-                                          } else if (typeof mcData.options === 'string') {
-                                            try {
-                                              options = JSON.parse(mcData.options);
-                                            } catch (e) {
-                                              console.error('Error parsing options:', e, mcData.options);
-                                            }
-                                          }
-                                          
+                                          if (!mcData || mcData.correct_option_index == null) return null;
+                                          const options = Array.isArray(mcData.options) ? mcData.options : [];
+                                          const correctLabel = options[mcData.correct_option_index] || `Option ${(mcData.correct_option_index as number) + 1}`;
                                           return (
-                                            <div className="space-y-4">
-                                              {/* Audio Preview */}
-                                              {audioFilePath && (
-                                                <div className="border rounded-lg p-4 bg-gray-50">
-                                                  <p className="text-sm font-medium text-gray-700 mb-2">Audio File:</p>
-                                                  <audio
-                                                    controls
-                                                    className="w-full"
-                                                    src={supabaseUrl ? `${supabaseUrl}/storage/v1/object/public/audio-files/${audioFilePath}` : ''}
-                                                  >
-                                                    Your browser does not support the audio element.
-                                                  </audio>
-                                                </div>
-                                              )}
-                                          
-                                              {/* Options with Notation Files */}
-                                              {options.length === 0 ? (
-                                                <p className="text-sm text-gray-500 italic">No options available</p>
-                                              ) : (
-                                                <div className="space-y-3">
-                                                  {options.map((option: string, idx: number) => {
-                                                    const notationFilePath = optionNotationFilePaths[idx];
-                                                    return (
-                                                      <div
-                                                        key={idx}
-                                                        className="border-2 border-gray-200 rounded-lg p-3 space-y-2"
-                                                      >
-                                                        <div className="flex items-center space-x-2">
-                                                          <input type="radio" disabled className="cursor-not-allowed" />
-                                                          <span className="flex-1 font-medium">{option || `Option ${idx + 1}`}</span>
-                                                          {mcData.correct_option_index === idx && (
-                                                            <span className="text-sm text-green-600 font-medium">
-                                                              ✓ Correct
-                                                            </span>
-                                                          )}
-                                                        </div>
-                                                        {notationFilePath ? (
-                                                          <div className="pl-7">
-                                                            <p className="text-xs text-gray-600 font-medium mb-1">Notation File:</p>
-                                                            <p className="text-xs text-gray-500">{notationFilePath}</p>
-                                                          </div>
-                                                        ) : (
-                                                          <div className="pl-7">
-                                                            <p className="text-xs text-yellow-600 italic">No notation file for this option</p>
-                                                          </div>
-                                                        )}
-                                                      </div>
-                                                    );
-                                                  })}
-                                                </div>
-                                              )}
-                                            </div>
+                                            <p className="text-sm text-gray-600 pt-2 border-t border-gray-200">
+                                              <span className="font-medium">Correct Answer:</span> {correctLabel}
+                                            </p>
                                           );
                                         })()}
                                       </div>
