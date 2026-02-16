@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ArrowLeft, Eye, Clock, FileText } from 'lucide-react'
 import Link from 'next/link'
+import { TrueFalseAnswer } from '@/components/answers/TrueFalseAnswer'
 import type { Exam, Question } from '@music-exam-builder/shared/types'
 
 export default function PreviewExamPage() {
@@ -204,24 +205,18 @@ export default function PreviewExamPage() {
                                   {/* Question Type Preview */}
                                   <div className="border-t pt-4">
                                     {sectionType === 'TRUE_FALSE' && (
-                                      <div className="space-y-2">
-                                        <p className="text-sm font-medium text-gray-700">Answer Type: True/False</p>
-                                        <div className="flex space-x-4">
-                                          <label className="flex items-center space-x-2 p-3 border-2 border-gray-200 rounded-lg">
-                                            <input type="radio" disabled className="cursor-not-allowed" />
-                                            <span>True</span>
-                                          </label>
-                                          <label className="flex items-center space-x-2 p-3 border-2 border-gray-200 rounded-lg">
-                                            <input type="radio" disabled className="cursor-not-allowed" />
-                                            <span>False</span>
-                                          </label>
-                                        </div>
+                                      <div className="space-y-4">
+                                        <TrueFalseAnswer
+                                          question={question}
+                                          value={{}}
+                                          onChange={() => {}}
+                                        />
                                         {(() => {
                                           const tfData = Array.isArray((question as any).true_false)
                                             ? (question as any).true_false[0]
                                             : (question as any).true_false;
                                           return tfData && (
-                                            <p className="text-sm text-gray-600 mt-2">
+                                            <p className="text-sm text-gray-600 mt-2 pt-2 border-t border-gray-200">
                                               <span className="font-medium">Correct Answer:</span>{' '}
                                               {tfData.correct_answer ? 'True' : 'False'}
                                             </p>

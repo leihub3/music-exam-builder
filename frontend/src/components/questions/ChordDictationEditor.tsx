@@ -58,13 +58,16 @@ export function ChordDictationEditor({ value, onChange }: ChordDictationEditorPr
     setPreviewError(null)
 
     try {
-      await musicAudioGenerator.generateChord({
+      const opts = {
         chordName: chord.correctChord,
         octave: chord.octave ?? 4,
         tempo,
         duration,
         instrument: instrument as 'piano' | 'sine' | 'synth'
-      })
+      }
+      await musicAudioGenerator.generateChord(opts)
+      await new Promise(resolve => setTimeout(resolve, 400))
+      await musicAudioGenerator.generateChordArpeggio(opts)
     } catch (error) {
       console.error('Error previewing chord:', error)
       setPreviewError(error instanceof Error ? error.message : 'Failed to play chord')

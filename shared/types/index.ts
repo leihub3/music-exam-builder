@@ -215,17 +215,21 @@ export interface QuestionBackendResponse {
     order_index?: number;
   };
   progression_dictation?: Array<{
-    correct_progression?: string[];
+    correct_progression?: string[] | Array<{ chord: string; rhythm: string }>; // Support both old format (string[]) and new format (ProgressionChord[])
     progression_key?: string;
     progression_notation?: string;
+    time_signature?: string;
+    metronome_enabled?: boolean;
     example_play_limit?: number;
     tempo?: number;
-    chord_duration?: number;
+    chord_duration?: number; // Deprecated, kept for backward compatibility
     instrument?: string;
   }> | {
-    correct_progression?: string[];
+    correct_progression?: string[] | Array<{ chord: string; rhythm: string }>;
     progression_key?: string;
     progression_notation?: string;
+    time_signature?: string;
+    metronome_enabled?: boolean;
     example_play_limit?: number;
     tempo?: number;
     chord_duration?: number;
@@ -282,14 +286,21 @@ export interface ChordDictationQuestionData {
   instrument?: 'piano' | 'sine' | 'synth'; // Instrument sound (shared across all chords)
 }
 
+// Progression Chord with rhythm pattern
+export interface ProgressionChord {
+  chord: string; // Roman numeral, e.g., 'II', 'V', 'I'
+  rhythm: 'whole' | 'half' | 'quarter' | 'eighth' | 'dotted-half' | 'dotted-quarter'; // Rhythm pattern
+}
+
 export interface ProgressionDictationQuestionData {
   questionId: string;
-  correctProgression: string[]; // Array of chord symbols (e.g., ['I', 'V', 'vi', 'IV'])
+  correctProgression: ProgressionChord[]; // Array of chords with rhythm patterns (e.g., [{chord: 'II', rhythm: 'half'}, {chord: 'V', rhythm: 'half'}, {chord: 'I', rhythm: 'whole'}])
   progressionKey?: string; // Key of the progression (e.g., 'C major')
-  progressionNotation?: 'roman' | 'jazz' | 'figured_bass'; // Notation style
+  progressionNotation?: 'roman' | 'jazz' | 'figured_bass'; // Notation style (currently only roman supported)
+  timeSignature?: string; // Time signature, e.g., '4/4', '3/4', '2/4'
+  metronomeEnabled?: boolean; // Whether to play metronome before progression
   examplePlayLimit?: number; // Number of times students can play the progression
   tempo?: number; // BPM
-  chordDuration?: number; // Duration of each chord in seconds
   instrument?: 'piano' | 'sine' | 'synth'; // Instrument sound
 }
 

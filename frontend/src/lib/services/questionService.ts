@@ -197,14 +197,18 @@ class QuestionService {
 
       case 'PROGRESSION_DICTATION':
         typeTable = 'progression_dictation_questions'
+        // Convert ProgressionChord[] to JSONB format
+        const progressionData = typeData.correctProgression || []
         typeRecord = {
           question_id: question.id,
-          correct_progression: typeData.correctProgression || [],
+          correct_progression: progressionData, // Will be stored as JSONB
           progression_key: typeData.progressionKey || 'C major',
           progression_notation: typeData.progressionNotation || 'roman',
+          time_signature: typeData.timeSignature || '4/4',
+          metronome_enabled: typeData.metronomeEnabled ?? true,
           example_play_limit: typeData.examplePlayLimit ?? 3,
           tempo: typeData.tempo ?? 120,
-          chord_duration: typeData.chordDuration ?? 2.0,
+          chord_duration: null, // Deprecated, kept for backward compatibility
           instrument: typeData.instrument || 'sine'
         }
         break
@@ -548,15 +552,19 @@ class QuestionService {
 
       case 'PROGRESSION_DICTATION':
         typeTable = 'progression_dictation_questions'
+        // Convert ProgressionChord[] to JSONB format
+        const progressionUpdateData = typeData.correctProgression || []
         updateData = {
           question_id: questionId,
-          correct_progression: typeData.correctProgression || [],
-          progression_key: typeData.progressionKey || 'C major',
-          progression_notation: typeData.progressionNotation || 'roman',
-          example_play_limit: typeData.examplePlayLimit ?? 3,
-          tempo: typeData.tempo ?? 120,
-          chord_duration: typeData.chordDuration ?? 2.0,
-          instrument: typeData.instrument || 'sine'
+          correct_progression: progressionUpdateData, // Will be stored as JSONB
+          progression_key: typeData.progressionKey !== undefined ? typeData.progressionKey : 'C major',
+          progression_notation: typeData.progressionNotation !== undefined ? typeData.progressionNotation : 'roman',
+          time_signature: typeData.timeSignature !== undefined ? typeData.timeSignature : '4/4',
+          metronome_enabled: typeData.metronomeEnabled !== undefined ? typeData.metronomeEnabled : true,
+          example_play_limit: typeData.examplePlayLimit !== undefined ? typeData.examplePlayLimit : 3,
+          tempo: typeData.tempo !== undefined ? typeData.tempo : 120,
+          chord_duration: null, // Deprecated
+          instrument: typeData.instrument !== undefined ? typeData.instrument : 'sine'
         }
         break
 

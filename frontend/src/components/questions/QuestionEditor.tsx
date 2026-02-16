@@ -101,12 +101,13 @@ export function QuestionEditor({
         }
       case 'PROGRESSION_DICTATION':
         return {
-          correctProgression: [],
+          correctProgression: [{ chord: 'I', rhythm: 'quarter' }],
           progressionKey: 'C major',
           progressionNotation: 'roman',
+          timeSignature: '4/4',
+          metronomeEnabled: true,
           examplePlayLimit: 3,
           tempo: 120,
-          chordDuration: 2.0,
           instrument: 'sine'
         }
       default:
@@ -308,13 +309,33 @@ export function QuestionEditor({
       } else if (questionBackend.progression_dictation) {
         const progDict = getFirstItem(questionBackend.progression_dictation)
         if (progDict) {
+          // Handle both old format (string[]) and new format (ProgressionChord[])
+          let correctProgression: Array<{ chord: string; rhythm: string }> = []
+          const prog = progDict.correct_progression
+          
+          if (Array.isArray(prog) && prog.length > 0) {
+            if (typeof prog[0] === 'string') {
+              // Old format: convert string[] to ProgressionChord[] with default quarter rhythm
+              correctProgression = (prog as string[]).map(chord => ({ chord, rhythm: 'quarter' }))
+            } else {
+              // New format: already ProgressionChord[]
+              correctProgression = prog as Array<{ chord: string; rhythm: string }>
+            }
+          }
+          
+          // Default to at least one chord if empty
+          if (correctProgression.length === 0) {
+            correctProgression = [{ chord: 'I', rhythm: 'quarter' }]
+          }
+          
           loadedTypeData = {
-            correctProgression: progDict.correct_progression || [],
+            correctProgression,
             progressionKey: progDict.progression_key || 'C major',
             progressionNotation: progDict.progression_notation || 'roman',
+            timeSignature: progDict.time_signature || '4/4',
+            metronomeEnabled: progDict.metronome_enabled ?? true,
             examplePlayLimit: progDict.example_play_limit ?? 3,
             tempo: progDict.tempo ?? 120,
-            chordDuration: progDict.chord_duration ?? 2.0,
             instrument: progDict.instrument || 'sine'
           }
         }

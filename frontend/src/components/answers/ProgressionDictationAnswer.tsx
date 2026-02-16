@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label'
 import { Play, Music, Plus, X } from 'lucide-react'
 import { musicAudioGenerator } from '@/lib/music-theory/audioGenerator'
 import { ROMAN_NUMERALS } from '@/lib/music-theory/constants'
-import type { Question, QuestionBackendResponse, ProgressionDictationQuestionData } from '@music-exam-builder/shared/types'
+import type { Question, QuestionBackendResponse, ProgressionDictationQuestionData, ProgressionChord } from '@music-exam-builder/shared/types'
 
 interface ProgressionDictationAnswerProps {
   question: Question
@@ -22,30 +22,82 @@ export function ProgressionDictationAnswer({ question, value, onChange }: Progre
   const [error, setError] = useState<string | null>(null)
   const [selectedProgression, setSelectedProgression] = useState<string[]>(value?.selectedProgression || ['I'])
 
-  // Get Progression Dictation data
+  // Get Progression Dictation data with backward compatibility
   const progressionData = (() => {
     const questionBackend = question as QuestionBackendResponse
     if (questionBackend.progression_dictation) {
       const progDataRaw = questionBackend.progression_dictation
       const data = Array.isArray(progDataRaw) ? progDataRaw[0] : progDataRaw
+      
+      // Handle both old format (string[]) and new format (ProgressionChord[])
+      let correctProgression: ProgressionChord[] = []
+      const prog = data.correct_progression
+      
+      if (Array.isArray(prog) && prog.length > 0) {
+        if (typeof prog[0] === 'string') {
+          // Old format: convert string[] to ProgressionChord[] with default quarter rhythm
+          correctProgression = (prog as string[]).map(chord => ({ chord, rhythm: 'quarter' }))
+        } else {
+          // New format: already ProgressionChord[]
+          correctProgression = prog as ProgressionChord[]
+        }
+      }
+      
       return {
-        correctProgression: data.correct_progression || [],
+        correctProgression,
         progressionKey: data.progression_key || 'C major',
+        timeSignature: data.time_signature || '4/4',
+        metronomeEnabled: data.metronome_enabled ?? true,
         examplePlayLimit: data.example_play_limit ?? 3,
         tempo: data.tempo ?? 120,
-        chordDuration: data.chord_duration ?? 2.0,
         instrument: data.instrument || 'sine'
       }
     }
-    return (question.typeData as ProgressionDictationQuestionData) || {}
+    
+    // Fallback to typeData
+    const typeData = question.typeData as ProgressionDictationQuestionData
+    if (typeData?.correctProgression) {
+      // Ensure it's ProgressionChord[] format
+      const prog = typeData.correctProgression
+      let correctProgression: ProgressionChord[] = []
+      
+      if (Array.isArray(prog) && prog.length > 0) {
+        if (typeof prog[0] === 'string') {
+          correctProgression = (prog as string[]).map(chord => ({ chord, rhythm: 'quarter' }))
+        } else {
+          correctProgression = prog
+        }
+      }
+      
+      return {
+        correctProgression,
+        progressionKey: typeData.progressionKey || 'C major',
+        timeSignature: typeData.timeSignature || '4/4',
+        metronomeEnabled: typeData.metronomeEnabled ?? true,
+        examplePlayLimit: typeData.examplePlayLimit ?? 3,
+        tempo: typeData.tempo ?? 120,
+        instrument: typeData.instrument || 'sine'
+      }
+    }
+    
+    return {
+      correctProgression: [{ chord: 'I', rhythm: 'quarter' }],
+      progressionKey: 'C major',
+      timeSignature: '4/4',
+      metronomeEnabled: true,
+      examplePlayLimit: 3,
+      tempo: 120,
+      instrument: 'sine'
+    }
   })()
 
-  const correctProgression = progressionData.correctProgression || (question.typeData as ProgressionDictationQuestionData)?.correctProgression || []
-  const progressionKey = progressionData.progressionKey || (question.typeData as ProgressionDictationQuestionData)?.progressionKey || 'C major'
-  const examplePlayLimit = progressionData.examplePlayLimit ?? (question.typeData as ProgressionDictationQuestionData)?.examplePlayLimit ?? 3
-  const tempo = progressionData.tempo ?? (question.typeData as ProgressionDictationQuestionData)?.tempo ?? 120
-  const chordDuration = progressionData.chordDuration ?? (question.typeData as ProgressionDictationQuestionData)?.chordDuration ?? 2.0
-  const instrument = progressionData.instrument || (question.typeData as ProgressionDictationQuestionData)?.instrument || 'sine'
+  const correctProgression = progressionData.correctProgression
+  const progressionKey = progressionData.progressionKey
+  const timeSignature = progressionData.timeSignature
+  const metronomeEnabled = progressionData.metronomeEnabled
+  const examplePlayLimit = progressionData.examplePlayLimit
+  const tempo = progressionData.tempo
+  const instrument = progressionData.instrument
 
   const canPlay = playCount < examplePlayLimit
   const playsRemaining = Math.max(0, examplePlayLimit - playCount)
@@ -68,12 +120,13 @@ export function ProgressionDictationAnswer({ question, value, onChange }: Progre
     setError(null)
 
     try {
-      // Play the correct progression (student doesn't see which one, they have to identify it)
+      // Play the correct progression with rhythm patterns and optional metronome
       await musicAudioGenerator.generateProgression({
         progression: correctProgression,
         key: progressionKey,
         tempo,
-        chordDuration,
+        timeSignature,
+        metronomeEnabled,
         instrument: instrument as 'piano' | 'sine' | 'synth'
       })
 
@@ -105,6 +158,27 @@ export function ProgressionDictationAnswer({ question, value, onChange }: Progre
     setSelectedProgression(newProgression)
   }
 
+  // Calculate number of measures based on correct progression (for display purposes)
+  const calculateMeasures = () => {
+    const rhythmToBeats: Record<string, number> = {
+      'whole': 4,
+      'dotted-half': 3,
+      'half': 2,
+      'dotted-quarter': 1.5,
+      'quarter': 1,
+      'eighth': 0.5
+    }
+    
+    const [beatsPerMeasure] = timeSignature.split('/').map(Number)
+    const totalBeats = correctProgression.reduce((sum, item) => {
+      return sum + (rhythmToBeats[item.rhythm] || 1)
+    }, 0)
+    
+    return Math.ceil(totalBeats / beatsPerMeasure)
+  }
+
+  const measureCount = calculateMeasures()
+
   return (
     <div className="space-y-6">
       {/* Instructions */}
@@ -114,11 +188,13 @@ export function ProgressionDictationAnswer({ question, value, onChange }: Progre
           <h3 className="font-semibold">Progression Dictation</h3>
         </div>
         <p className="text-sm text-gray-700">
-          Listen to the chord progression and identify it. You can play the example multiple times.
+          Listen to the chord progression and identify it measure by measure. {metronomeEnabled && 'You will hear a metronome before the progression starts.'}
         </p>
-        <p className="text-xs text-gray-600 mt-2">
-          Key: <strong>{progressionKey}</strong>
-        </p>
+        <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
+          <span>Key: <strong>{progressionKey}</strong></span>
+          <span>Time: <strong>{timeSignature}</strong></span>
+          <span>Measures: <strong>{measureCount}</strong></span>
+        </div>
       </div>
 
       {/* Play Example Section */}
@@ -129,6 +205,11 @@ export function ProgressionDictationAnswer({ question, value, onChange }: Progre
             <p className="text-sm text-gray-600 mt-1">
               {playsRemaining} / {examplePlayLimit} plays remaining
             </p>
+            {metronomeEnabled && (
+              <p className="text-xs text-gray-500 mt-1">
+                Metronome will play {timeSignature} before the progression
+              </p>
+            )}
           </div>
           <Button
             type="button"
@@ -150,10 +231,10 @@ export function ProgressionDictationAnswer({ question, value, onChange }: Progre
         )}
       </div>
 
-      {/* Answer Selection */}
+      {/* Answer Selection - Measure by Measure */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <Label>What progression do you hear? *</Label>
+          <Label>What progression do you hear? * (Enter chords measure by measure)</Label>
           <Button
             type="button"
             variant="outline"
@@ -164,11 +245,14 @@ export function ProgressionDictationAnswer({ question, value, onChange }: Progre
             Add Chord
           </Button>
         </div>
+        <p className="text-xs text-gray-500">
+          Build the progression you hear. Each chord represents a chord in the progression (not necessarily one per measure).
+        </p>
         
         <div className="space-y-3">
           {selectedProgression.map((chord, index) => (
-            <div key={index} className="flex items-center space-x-2">
-              <span className="text-sm text-gray-600 w-8">#{index + 1}</span>
+            <div key={index} className="flex items-center space-x-2 p-2 border rounded bg-white">
+              <span className="text-sm text-gray-600 w-8 font-medium">#{index + 1}</span>
               <select
                 className="flex h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
                 value={chord}
@@ -196,10 +280,9 @@ export function ProgressionDictationAnswer({ question, value, onChange }: Progre
           Your answer: <strong>{selectedProgression.join(' → ')}</strong>
         </div>
         <p className="text-xs text-gray-500">
-          Listen carefully and build the progression you hear
+          Listen carefully and build the progression you hear. The progression spans {measureCount} measure(s).
         </p>
       </div>
     </div>
   )
 }
-

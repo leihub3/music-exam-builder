@@ -150,13 +150,16 @@ export function ChordDictationAnswer({ question, value, onChange }: ChordDictati
     setError(null)
 
     try {
-      await musicAudioGenerator.generateChord({
+      const opts = {
         chordName: chord.correctChord,
         octave: chord.octave ?? 4,
         tempo,
         duration,
         instrument: instrument as 'piano' | 'sine' | 'synth'
-      })
+      }
+      await musicAudioGenerator.generateChord(opts)
+      await new Promise(resolve => setTimeout(resolve, 400))
+      await musicAudioGenerator.generateChordArpeggio(opts)
 
       setPlayCounts(prev => ({ ...prev, [index]: playCount + 1 }))
     } catch (err) {

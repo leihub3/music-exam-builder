@@ -95,3 +95,28 @@ export const PROGRESSION_NOTATIONS = [
   { value: 'figured_bass', label: 'Figured Bass' },
 ]
 
+export interface RhythmOption {
+  value: 'whole' | 'half' | 'quarter' | 'eighth' | 'dotted-half' | 'dotted-quarter';
+  label: string;
+  beats: number; // Beats in 4/4 time (e.g., whole=4, half=2, quarter=1)
+  symbol: string; // VexFlow code or description
+}
+
+export const RHYTHM_PATTERNS: RhythmOption[] = [
+  { value: 'whole', label: 'Whole Note (𝅝)', beats: 4, symbol: 'w' },
+  { value: 'dotted-half', label: 'Dotted Half Note (𝅗𝅥)', beats: 3, symbol: 'hd' },
+  { value: 'half', label: 'Half Note (𝅗)', beats: 2, symbol: 'h' },
+  { value: 'dotted-quarter', label: 'Dotted Quarter Note (𝅘𝅥)', beats: 1.5, symbol: 'qd' },
+  { value: 'quarter', label: 'Quarter Note (𝅘)', beats: 1, symbol: 'q' },
+  { value: 'eighth', label: 'Eighth Note (𝅘𝅥𝅮)', beats: 0.5, symbol: '8' },
+]
+
+export const TIME_SIGNATURES = [
+  { value: '2/4', label: '2/4 (Two-Four)' },
+  { value: '3/4', label: '3/4 (Three-Four)' },
+  { value: '4/4', label: '4/4 (Four-Four / Common Time)' },
+  { value: '6/8', label: '6/8 (Six-Eight)' },
+  { value: '9/8', label: '9/8 (Nine-Eight)' },
+  { value: '12/8', label: '12/8 (Twelve-Eight)' },
+]
+
