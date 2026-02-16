@@ -43,6 +43,8 @@ interface NotationEditorProps {
   initialMeasureCount?: number
   onChange?: (notes: Note[], musicXML?: string) => void
   readOnly?: boolean
+  /** When false, does not sync/clear from initialNotes on re-render. Use for "create new" mode where parent passes []. */
+  syncFromProps?: boolean
 }
 
 export function NotationEditor({
@@ -52,7 +54,8 @@ export function NotationEditor({
   initialTimeSignature,
   initialMeasureCount,
   onChange,
-  readOnly = false
+  readOnly = false,
+  syncFromProps = true
 }: NotationEditorProps) {
   const canvasRef = useRef<HTMLDivElement>(null)
   const [notes, setNotes] = useState<Note[]>(initialNotes)
@@ -61,6 +64,7 @@ export function NotationEditor({
 
   // Sync notes and metadata when initial values change (e.g., when loading saved content)
   useEffect(() => {
+    if (!syncFromProps) return
     console.log('NotationEditor: initialNotes changed', initialNotes?.length || 0, 'notes')
     if (initialNotes && initialNotes.length > 0) {
       console.log('NotationEditor: Setting notes from initialNotes', initialNotes)
@@ -86,7 +90,7 @@ export function NotationEditor({
     if (clef) {
       setSelectedClef(clef)
     }
-  }, [initialNotes, initialKeySignature, initialTimeSignature, initialMeasureCount, clef])
+  }, [syncFromProps, initialNotes, initialKeySignature, initialTimeSignature, initialMeasureCount, clef])
   const [selectedNote, setSelectedNote] = useState<string | null>(null)
   const [selectedDuration, setSelectedDuration] = useState<string>('q') // quarter note
   const [selectedPitch, setSelectedPitch] = useState<string>('C/4')

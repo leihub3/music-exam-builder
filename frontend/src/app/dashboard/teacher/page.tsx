@@ -7,9 +7,18 @@ import { supabase } from '@/lib/supabase/client'
 import { api } from '@/lib/api'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Plus, Music, FileText, Users, UserPlus } from 'lucide-react'
+import { Plus, Music, FileText, Users, UserPlus, FileMusic, Download, Upload } from 'lucide-react'
 import { AssignExamDialog } from '@/components/exam/AssignExamDialog'
 import { formatDate } from '@/lib/utils'
+import { NotationEditor } from '@/components/notation/NotationEditor'
+import { parseMusicXMLToNotes } from '@/lib/notation/musicxml-parser'
+import JSZip from 'jszip'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog'
 
 export default function TeacherDashboard() {
   const router = useRouter()
@@ -18,6 +27,15 @@ export default function TeacherDashboard() {
   const [exams, setExams] = useState<any[]>([])
   const [assignDialogOpen, setAssignDialogOpen] = useState(false)
   const [selectedExam, setSelectedExam] = useState<any>(null)
+  const [notationEditorOpen, setNotationEditorOpen] = useState(false)
+  const [editorMusicXML, setEditorMusicXML] = useState<string | null>(null)
+  const [loadedNotation, setLoadedNotation] = useState<{
+    notes: any[]
+    clef: 'treble' | 'bass' | 'alto' | 'tenor'
+    keySignature: string
+    timeSignature: string
+    measureCount: number
+  } | null>(null)
 
   useEffect(() => {
     checkAuth()
@@ -63,6 +81,84 @@ export default function TeacherDashboard() {
     router.push('/')
   }
 
+  const handleDownloadMusicXML = () => {
+    if (!editorMusicXML) return
+    const blob = new Blob([editorMusicXML], { type: 'application/xml' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `score-${new Date().toISOString().slice(0, 10)}.xml`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  const handleLoadMusicXML = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    const fileName = file.name.toLowerCase()
+    const isMXL =
+      fileName.endsWith('.mxl') ||
+      file.type === 'application/zip' ||
+      file.type === 'application/x-zip-compressed'
+    try {
+      let xmlContent: string
+      if (isMXL) {
+        const arrayBuffer = await file.arrayBuffer()
+        const zip = await JSZip.loadAsync(arrayBuffer)
+        let xmlFile = zip.file('META-INF/container.xml')
+        if (xmlFile) {
+          const containerContent = await xmlFile.async('text')
+          const parser = new DOMParser()
+          const containerDoc = parser.parseFromString(containerContent, 'text/xml')
+          const rootFileEl = containerDoc.querySelector(
+            'rootfile[media-type="application/vnd.recordare.musicxml+xml"]'
+          )
+          if (rootFileEl) {
+            const xmlPath = rootFileEl.getAttribute('full-path') || 'score.xml'
+            xmlFile = zip.file(xmlPath) || xmlFile
+          }
+        }
+        if (!xmlFile) {
+          xmlFile =
+            zip.file('score.xml') ||
+            zip.file('music.xml') ||
+            (Object.keys(zip.files).find((f) => f.endsWith('.xml'))
+              ? zip.file(Object.keys(zip.files).find((f) => f.endsWith('.xml'))!)
+              : null)
+        }
+        if (!xmlFile) {
+          throw new Error('No XML file found in MXL archive')
+        }
+        xmlContent = await xmlFile.async('text')
+      } else {
+        xmlContent = await file.text()
+      }
+      const parsed = parseMusicXMLToNotes(xmlContent)
+      setLoadedNotation({
+        notes: parsed.notes,
+        clef: parsed.clef,
+        keySignature: parsed.keySignature,
+        timeSignature: parsed.timeSignature,
+        measureCount: parsed.measureCount,
+      })
+      setEditorMusicXML(xmlContent)
+    } catch (err) {
+      console.error('Error loading MusicXML:', err)
+      alert('Failed to load MusicXML file. Please ensure it is a valid .xml, .musicxml, or .mxl file.')
+    }
+    e.target.value = ''
+  }
+
+  const handleNotationEditorClose = (open: boolean) => {
+    if (!open) {
+      setNotationEditorOpen(false)
+      setLoadedNotation(null)
+      setEditorMusicXML(null)
+    } else {
+      setNotationEditorOpen(true)
+    }
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -101,12 +197,22 @@ export default function TeacherDashboard() {
             <h1 className="text-3xl font-bold text-gray-900 mb-2">Teacher Dashboard</h1>
             <p className="text-gray-600">Create and manage your music exams</p>
           </div>
-          <Link href="/exam/create">
-            <Button size="lg">
-              <Plus className="h-5 w-5 mr-2" />
-              Create Exam
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={() => setNotationEditorOpen(true)}
+            >
+              <FileMusic className="h-5 w-5 mr-2" />
+              Notation Editor
             </Button>
-          </Link>
+            <Link href="/exam/create">
+              <Button size="lg">
+                <Plus className="h-5 w-5 mr-2" />
+                Create Exam
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -239,6 +345,65 @@ export default function TeacherDashboard() {
           }}
         />
       )}
+
+      {/* Notation Editor Modal */}
+      <Dialog open={notationEditorOpen} onOpenChange={handleNotationEditorClose}>
+        <DialogContent className="max-w-[90vw] w-[90vw] h-[95vh] max-h-[95vh] p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="px-6 py-4 border-b shrink-0">
+            <DialogTitle className="text-xl">Notation Editor - Create or Edit Score</DialogTitle>
+          </DialogHeader>
+          <div className="flex-1 overflow-auto p-6 bg-gray-50">
+            {notationEditorOpen && (
+              <NotationEditor
+                key={`dashboard-editor-${loadedNotation ? 'loaded' : 'new'}-${loadedNotation?.notes?.length ?? 0}`}
+                initialNotes={loadedNotation?.notes ?? []}
+                clef={loadedNotation?.clef ?? 'treble'}
+                initialKeySignature={loadedNotation?.keySignature}
+                initialTimeSignature={loadedNotation?.timeSignature}
+                initialMeasureCount={loadedNotation?.measureCount}
+                syncFromProps={!!loadedNotation}
+                onChange={(notes, musicXML) => {
+                  if (musicXML) setEditorMusicXML(musicXML)
+                }}
+              />
+            )}
+          </div>
+          <div className="px-6 py-4 border-t bg-white shrink-0 flex items-center justify-between">
+            <div className="flex gap-2">
+              <input
+                type="file"
+                accept=".xml,.musicxml,.mxl,application/xml,text/xml,application/vnd.recordare.musicxml+xml"
+                onChange={handleLoadMusicXML}
+                className="hidden"
+                id="load-musicxml"
+              />
+              <label htmlFor="load-musicxml">
+                <Button type="button" variant="outline" asChild>
+                  <span className="cursor-pointer">
+                    <Upload className="h-4 w-4 mr-2" />
+                    Load MusicXML
+                  </span>
+                </Button>
+              </label>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                onClick={() => handleNotationEditorClose(false)}
+              >
+                Close
+              </Button>
+              <Button
+                onClick={handleDownloadMusicXML}
+                disabled={!editorMusicXML}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download MusicXML
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }
