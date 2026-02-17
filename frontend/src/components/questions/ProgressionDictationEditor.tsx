@@ -187,7 +187,7 @@ export function ProgressionDictationEditor({ value, onChange }: ProgressionDicta
           ))}
         </select>
         <p className="text-xs text-gray-500">
-          Metronome will play {timeSignature} with proper accents before the progression starts.
+          Metronome will play {timeSignature} with proper accents throughout the progression.
         </p>
       </div>
 
@@ -202,7 +202,7 @@ export function ProgressionDictationEditor({ value, onChange }: ProgressionDicta
             className="h-4 w-4 rounded border-gray-300"
           />
           <Label htmlFor="metronomeEnabled" className="cursor-pointer">
-            Enable Metronome (plays one measure before progression)
+            Enable Metronome (plays throughout progression)
           </Label>
         </div>
         <p className="text-xs text-gray-500 ml-6">

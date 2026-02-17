@@ -2466,7 +2466,7 @@ export function NotationEditor({
                 className="rounded"
               />
               <Timer className="h-4 w-4 text-gray-600" />
-              <span className="text-xs">Metronome (1 bar before)</span>
+              <span className="text-xs">Metronome (throughout)</span>
             </label>
           </div>
 

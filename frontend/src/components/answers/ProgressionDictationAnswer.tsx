@@ -207,7 +207,7 @@ export function ProgressionDictationAnswer({ question, value, onChange }: Progre
             </p>
             {metronomeEnabled && (
               <p className="text-xs text-gray-500 mt-1">
-                Metronome will play {timeSignature} before the progression
+                Metronome will play {timeSignature} throughout the progression
               </p>
             )}
           </div>

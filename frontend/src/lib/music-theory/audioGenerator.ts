@@ -481,34 +481,34 @@ export class MusicAudioGenerator {
       // Calculate beat duration in seconds
       const beatDuration = 60 / tempo
 
-      // Calculate metronome duration if enabled
-      let metronomeDuration = 0
-      let progressionStartTime = 0
-      
+      const progressionDuration = normalizedProgression.reduce((sum, item) => {
+        const beats = rhythmToBeats[item.rhythm] || 1
+        return sum + (beats * beatDuration)
+      }, 0)
+      const [beatsPerMeasure] = (timeSignature || '4/4').split('/').map(Number)
+      const measureDuration = (beatsPerMeasure || 4) * beatDuration
+      const progressionMeasures = Math.max(1, Math.ceil(progressionDuration / measureDuration))
+
       if (metronomeEnabled) {
         await this.loadMetronomeSample()
-        metronomeDuration = this.scheduleMetronome({
+        this.scheduleMetronome({
           timeSignature,
           tempo,
-          measures: 1,
+          measures: progressionMeasures,
           accentFirstBeat: true,
           startTime: 0
         })
-        // Small gap (0.2 seconds) before progression
-        progressionStartTime = metronomeDuration + 0.2
       }
 
       if (!this.synth && !this.pianoSampler) {
         throw new Error('Synth not initialized')
       }
 
-      // Schedule each chord with its rhythm duration (starting after metronome if enabled)
-      let currentTime = progressionStartTime
+      let currentTime = 0
       
       console.log('Scheduling progression:', {
         progression: normalizedProgression,
         chords,
-        progressionStartTime,
         tempo,
         beatDuration
       })
@@ -542,17 +542,9 @@ export class MusicAudioGenerator {
         currentTime += durationSeconds
       })
 
-      // Calculate total duration (metronome + gap + progression)
-      const progressionDuration = normalizedProgression.reduce((sum, item) => {
-        const beats = rhythmToBeats[item.rhythm] || 1
-        return sum + (beats * beatDuration)
-      }, 0)
-      
-      const totalDuration = progressionStartTime + progressionDuration
+      const totalDuration = progressionDuration + 0.5
 
       console.log('Starting Transport:', {
-        metronomeDuration,
-        progressionStartTime,
         progressionDuration,
         totalDuration
       })
@@ -577,7 +569,7 @@ export class MusicAudioGenerator {
 
   /**
    * Play a notation score (NotationEditor notes format)
-   * Uses setTimeout + triggerAttackRelease instead of Transport for reliability across contexts (modals, etc.)
+   * Uses setTimeout (Transport can fail in modal/editor context).
    */
   async playNotationScore(options: PlayNotationScoreOptions): Promise<void> {
     await this.init(options.instrument || 'sine')
@@ -605,23 +597,6 @@ export class MusicAudioGenerator {
       '16': 0.25
     }
     const beatDurationSeconds = 60 / tempo
-
-    let startOffsetSeconds = 0
-    if (metronomeEnabled) {
-      await this.loadMetronomeSample()
-      const normalizedTimeSignature = timeSignature === 'C' ? '4/4' : timeSignature === 'C|' ? '2/2' : (timeSignature || '4/4')
-      const [beatsPerMeasure] = normalizedTimeSignature.split('/').map(Number)
-      const metronomeBeats = beatsPerMeasure || 4
-      startOffsetSeconds = metronomeBeats * beatDurationSeconds + 0.2
-      const clickInterval = beatDurationSeconds * 1000
-      const accentPlayer = this.metronomePlayerAccent!
-      const regularPlayer = this.metronomePlayer!
-      for (let b = 0; b < metronomeBeats; b++) {
-        setTimeout(() => {
-          (b === 0 ? accentPlayer : regularPlayer).start(Tone.now())
-        }, b * clickInterval)
-      }
-    }
 
     const playAtTimes: { timeMs: number; noteName: string; durationSeconds: number }[] = []
     let currentBeat = 0
@@ -669,7 +644,7 @@ export class MusicAudioGenerator {
         continue
       }
 
-      const startSeconds = startOffsetSeconds + currentBeat * beatDurationSeconds
+      const startSeconds = currentBeat * beatDurationSeconds
       const durationSeconds = beats * beatDurationSeconds
       playAtTimes.push({
         timeMs: Math.round(startSeconds * 1000),
@@ -679,7 +654,21 @@ export class MusicAudioGenerator {
       currentBeat += beats
     }
 
-    const totalDurationMs = (startOffsetSeconds + currentBeat * beatDurationSeconds + 0.5) * 1000
+    const totalDurationMs = (currentBeat * beatDurationSeconds + 0.5) * 1000
+
+    this.playbackTimeouts = []
+    if (metronomeEnabled) {
+      await this.loadMetronomeSample()
+      const normalizedTimeSignature = timeSignature === 'C' ? '4/4' : timeSignature === 'C|' ? '2/2' : (timeSignature || '4/4')
+      const [beatsPerMeasure] = normalizedTimeSignature.split('/').map(Number) || [4]
+      const accentPlayer = this.metronomePlayerAccent!
+      const regularPlayer = this.metronomePlayer!
+      for (let b = 0; b < currentBeat; b++) {
+        const player = beatsPerMeasure > 0 && b % beatsPerMeasure === 0 ? accentPlayer : regularPlayer
+        const id = setTimeout(() => player.start(Tone.now()), Math.round(b * beatDurationSeconds * 1000))
+        this.playbackTimeouts.push(id)
+      }
+    }
 
     if (playAtTimes.length === 0) {
       const hasNotes = notes.some(n => !n.isRest && n.pitch !== 'rest')
@@ -689,7 +678,6 @@ export class MusicAudioGenerator {
       return
     }
 
-    this.playbackTimeouts = []
     for (const { timeMs, noteName, durationSeconds } of playAtTimes) {
       const id = setTimeout(() => {
         this.playNote(noteName, durationSeconds, Tone.now())
@@ -698,10 +686,7 @@ export class MusicAudioGenerator {
     }
 
     await new Promise<void>((resolve) => {
-      const id = setTimeout(() => {
-        this.playbackTimeouts = []
-        resolve()
-      }, totalDurationMs)
+      const id = setTimeout(() => resolve(), totalDurationMs)
       this.playbackTimeouts.push(id)
     })
   }
