@@ -28,13 +28,57 @@ export interface GenerateProgressionOptions {
   instrument?: 'piano' | 'sine' | 'synth'
 }
 
+/** NotationEditor note format */
+export interface NotationEditorNote {
+  id: string
+  pitch: string // e.g., "C/4", "D/4"
+  duration: string // "q", "8", "h", "w", "16"
+  accidental?: '#' | 'b' | 'n' | null
+  stave?: number
+  x?: number
+  measure?: number
+  isRest?: boolean
+  dot?: boolean
+  tieStart?: boolean
+  tieEnd?: boolean
+  tieId?: string
+  slurStart?: boolean
+  slurEnd?: boolean
+  slurId?: string
+  articulation?: 'staccato' | 'accent' | 'tenuto' | 'staccatissimo' | 'marcato' | null
+}
+
+export interface PlayNotationScoreOptions {
+  notes: NotationEditorNote[]
+  tempo?: number
+  timeSignature?: string
+  metronomeEnabled?: boolean
+  instrument?: 'piano' | 'sine' | 'synth'
+}
+
 /**
  * Music Audio Generator
  * Generates intervals, chords, and progressions using Tone.js and Tonal.js
  */
+const SIDESTICK_URL = '/samples/drums/SideStick.wav'
+
 export class MusicAudioGenerator {
   private synth: Tone.PolySynth | Tone.Sampler | null = null
+  private pianoSampler: Tone.Sampler | null = null
+  private metronomePlayer: Tone.Player | null = null
+  private metronomePlayerAccent: Tone.Player | null = null
   private initialized = false
+  private playbackTimeouts: ReturnType<typeof setTimeout>[] = []
+
+  private async loadMetronomeSample(): Promise<void> {
+    if (this.metronomePlayer?.loaded) return
+    const [player, accentPlayer] = await Promise.all([
+      (async () => { const p = new Tone.Player().toDestination(); await p.load(SIDESTICK_URL); return p })(),
+      (async () => { const p = new Tone.Player().toDestination(); p.volume.value = 3; await p.load(SIDESTICK_URL); return p })()
+    ])
+    this.metronomePlayer = player
+    this.metronomePlayerAccent = accentPlayer
+  }
 
   /**
    * Initialize audio context and synth
@@ -51,6 +95,15 @@ export class MusicAudioGenerator {
       }
       this.synth = null
     }
+    if (this.pianoSampler) {
+      try {
+        this.pianoSampler.releaseAll()
+        this.pianoSampler.dispose()
+      } catch (e) {
+        // Ignore disposal errors
+      }
+      this.pianoSampler = null
+    }
 
     try {
       // Start Tone.js audio context (requires user interaction)
@@ -58,21 +111,14 @@ export class MusicAudioGenerator {
 
       // Create synth based on instrument type
       if (instrument === 'piano') {
-        // For now, use a PolySynth with a piano-like envelope
-        // TODO: Later can add SoundFont samples for better piano sound
-        this.synth = new Tone.PolySynth({
-          maxPolyphony: 6,
-          voice: Tone.Synth,
-          options: {
-            oscillator: { type: 'sine' },
-            envelope: {
-              attack: 0.1,
-              decay: 0.2,
-              sustain: 0.5,
-              release: 1.2
-            }
-          }
-        }).toDestination()
+        await new Promise<void>((resolve, reject) => {
+          this.pianoSampler = new Tone.Sampler({
+            urls: { 60: '3_60.wav' },
+            baseUrl: '/samples/piano/',
+            onload: resolve,
+            onerror: reject
+          }).toDestination()
+        })
       } else if (instrument === 'synth') {
         this.synth = new Tone.PolySynth(Tone.Synth).toDestination()
       } else {
@@ -90,6 +136,16 @@ export class MusicAudioGenerator {
     } catch (error) {
       console.error('Error initializing audio generator:', error)
       throw error
+    }
+  }
+
+  /** Play note(s) using current instrument (synth or piano) */
+  private playNote(notes: string | string[], durationSeconds: number, time?: number): void {
+    const t = time ?? Tone.now()
+    if (this.pianoSampler) {
+      this.pianoSampler.triggerAttackRelease(notes, durationSeconds, t, 0.8)
+    } else if (this.synth) {
+      this.synth.triggerAttackRelease(notes, durationSeconds, t)
     }
   }
 
@@ -180,15 +236,12 @@ export class MusicAudioGenerator {
       const duration = Tone.Time(`${noteDuration * 4}n`).toSeconds() // Convert to Tone time
 
       if (direction === 'harmonic') {
-        // Play both notes simultaneously
-        this.synth?.triggerAttackRelease([note1, note2], duration)
-        // Wait for harmonic interval to finish (only one duration since notes play together)
+        this.playNote([note1, note2], duration)
         await new Promise(resolve => setTimeout(resolve, (noteDuration + 0.5) * 1000))
       } else {
-        // Play sequentially
         const now = Tone.now()
-        this.synth?.triggerAttackRelease(note1, duration, now)
-        this.synth?.triggerAttackRelease(note2, duration, now + noteDuration)
+        this.playNote(note1, duration, now)
+        this.playNote(note2, duration, now + noteDuration)
         // Wait for sequential interval to finish (two durations)
         await new Promise(resolve => setTimeout(resolve, (noteDuration * 2 + 0.5) * 1000))
       }
@@ -265,7 +318,7 @@ export class MusicAudioGenerator {
       const notes = chord.notes.map(note => `${note}${octave}`)
 
       const durationSeconds = Tone.Time(`${duration * 4}n`).toSeconds()
-      this.synth?.triggerAttackRelease(notes, durationSeconds)
+      this.playNote(notes, durationSeconds)
 
       // Wait for audio to finish
       await new Promise(resolve => setTimeout(resolve, (duration + 0.5) * 1000))
@@ -302,7 +355,7 @@ export class MusicAudioGenerator {
       const now = Tone.now()
       notes.forEach((note, i) => {
         const startTime = now + i * (gapBetweenNotes + noteDuration)
-        this.synth?.triggerAttackRelease(note, noteDuration, startTime)
+        this.playNote(note, noteDuration, startTime)
       })
 
       const totalArpeggioDuration = (notes.length - 1) * gapBetweenNotes + notes.length * noteDuration
@@ -331,35 +384,17 @@ export class MusicAudioGenerator {
       throw new Error(`Invalid time signature: ${options.timeSignature}`)
     }
     
-    // Create click sounds (higher pitch for accent, lower for regular beats)
-    const accentClick = new Tone.MembraneSynth({
-      pitchDecay: 0.05,
-      octaves: 10,
-      oscillator: { type: 'sine' },
-      envelope: { attack: 0.001, decay: 0.1, sustain: 0.01, release: 0.1 }
-    }).toDestination()
-    
-    const regularClick = new Tone.MembraneSynth({
-      pitchDecay: 0.05,
-      octaves: 8,
-      oscillator: { type: 'sine' },
-      envelope: { attack: 0.001, decay: 0.05, sustain: 0.01, release: 0.05 }
-    }).toDestination()
-    
-    const beatDuration = 60 / options.tempo // Duration of one beat in seconds
-    
-    // Schedule clicks for each measure
+    const beatDuration = 60 / options.tempo
+    const accentPlayer = this.metronomePlayerAccent!
+    const regularPlayer = this.metronomePlayer!
+
     for (let measure = 0; measure < options.measures; measure++) {
       for (let beat = 0; beat < beatsPerMeasure; beat++) {
-        const isAccent = options.accentFirstBeat !== false && beat === 0 // Accent the first beat
+        const isAccent = options.accentFirstBeat !== false && beat === 0
         const time = options.startTime + measure * beatsPerMeasure * beatDuration + beat * beatDuration
-        
-        Tone.Transport.schedule(() => {
-          if (isAccent) {
-            accentClick.triggerAttackRelease('C6', '8n', '+0', 0.5)
-          } else {
-            regularClick.triggerAttackRelease('C5', '16n', '+0', 0.3)
-          }
+
+        Tone.Transport.schedule((scheduledTime) => {
+          (isAccent ? accentPlayer : regularPlayer).start(scheduledTime)
         }, time)
       }
     }
@@ -451,7 +486,7 @@ export class MusicAudioGenerator {
       let progressionStartTime = 0
       
       if (metronomeEnabled) {
-        // Schedule metronome starting at time 0
+        await this.loadMetronomeSample()
         metronomeDuration = this.scheduleMetronome({
           timeSignature,
           tempo,
@@ -463,8 +498,7 @@ export class MusicAudioGenerator {
         progressionStartTime = metronomeDuration + 0.2
       }
 
-      // Ensure synth is initialized
-      if (!this.synth) {
+      if (!this.synth && !this.pianoSampler) {
         throw new Error('Synth not initialized')
       }
 
@@ -502,12 +536,7 @@ export class MusicAudioGenerator {
 
         Tone.Transport.schedule((time) => {
           console.log(`Playing chord ${index + 1} at scheduled time ${time}:`, notes)
-          if (this.synth) {
-            // Pass the scheduled time to triggerAttackRelease for accurate timing
-            this.synth.triggerAttackRelease(notes, durationSeconds, time)
-          } else {
-            console.error('Synth not available when trying to play chord')
-          }
+          this.playNote(notes, durationSeconds, time)
         }, currentTime)
         
         currentTime += durationSeconds
@@ -547,11 +576,149 @@ export class MusicAudioGenerator {
   }
 
   /**
+   * Play a notation score (NotationEditor notes format)
+   * Uses setTimeout + triggerAttackRelease instead of Transport for reliability across contexts (modals, etc.)
+   */
+  async playNotationScore(options: PlayNotationScoreOptions): Promise<void> {
+    await this.init(options.instrument || 'sine')
+
+    const {
+      notes,
+      tempo = 120,
+      timeSignature = '4/4',
+      metronomeEnabled = false
+    } = options
+
+    if (!notes || notes.length === 0) {
+      return
+    }
+
+    if (!this.synth && !this.pianoSampler) {
+      throw new Error('Synth not initialized')
+    }
+
+    const durationMap: Record<string, number> = {
+      w: 4,
+      h: 2,
+      q: 1,
+      '8': 0.5,
+      '16': 0.25
+    }
+    const beatDurationSeconds = 60 / tempo
+
+    let startOffsetSeconds = 0
+    if (metronomeEnabled) {
+      await this.loadMetronomeSample()
+      const normalizedTimeSignature = timeSignature === 'C' ? '4/4' : timeSignature === 'C|' ? '2/2' : (timeSignature || '4/4')
+      const [beatsPerMeasure] = normalizedTimeSignature.split('/').map(Number)
+      const metronomeBeats = beatsPerMeasure || 4
+      startOffsetSeconds = metronomeBeats * beatDurationSeconds + 0.2
+      const clickInterval = beatDurationSeconds * 1000
+      const accentPlayer = this.metronomePlayerAccent!
+      const regularPlayer = this.metronomePlayer!
+      for (let b = 0; b < metronomeBeats; b++) {
+        setTimeout(() => {
+          (b === 0 ? accentPlayer : regularPlayer).start(Tone.now())
+        }, b * clickInterval)
+      }
+    }
+
+    const playAtTimes: { timeMs: number; noteName: string; durationSeconds: number }[] = []
+    let currentBeat = 0
+    const skipIndices = new Set<number>()
+
+    for (let i = 0; i < notes.length; i++) {
+      if (skipIndices.has(i)) continue
+
+      const note = notes[i]
+      let beats = (durationMap[note.duration] ?? 1) * (note.dot ? 1.5 : 1)
+
+      if (note.isRest || note.pitch === 'rest') {
+        currentBeat += beats
+        continue
+      }
+
+      if (note.tieStart) {
+        let totalBeats = beats
+        for (let j = i + 1; j < notes.length; j++) {
+          const nextNote = notes[j]
+          if (nextNote.pitch === note.pitch && !nextNote.isRest && (nextNote.tieEnd || nextNote.tieStart)) {
+            const nextBeats = (durationMap[nextNote.duration] ?? 1) * (nextNote.dot ? 1.5 : 1)
+            totalBeats += nextBeats
+            skipIndices.add(j)
+            if (nextNote.tieEnd && !nextNote.tieStart) break
+          } else {
+            break
+          }
+        }
+        beats = totalBeats
+      } else if (note.tieEnd && !note.tieStart) {
+        skipIndices.add(i)
+        continue
+      }
+
+      const [step, octave] = note.pitch.split('/')
+      const stepUpper = (step || 'C').toUpperCase()
+      const octaveStr = octave || '4'
+      const accidental = note.accidental === '#' ? '#' : note.accidental === 'b' ? 'b' : ''
+      const noteName = `${stepUpper}${accidental}${octaveStr}`
+
+      try {
+        Tone.Frequency(noteName).toMidi()
+      } catch {
+        continue
+      }
+
+      const startSeconds = startOffsetSeconds + currentBeat * beatDurationSeconds
+      const durationSeconds = beats * beatDurationSeconds
+      playAtTimes.push({
+        timeMs: Math.round(startSeconds * 1000),
+        noteName,
+        durationSeconds
+      })
+      currentBeat += beats
+    }
+
+    const totalDurationMs = (startOffsetSeconds + currentBeat * beatDurationSeconds + 0.5) * 1000
+
+    if (playAtTimes.length === 0) {
+      const hasNotes = notes.some(n => !n.isRest && n.pitch !== 'rest')
+      if (hasNotes) {
+        console.warn('playNotationScore: No notes scheduled - possible validation failures', notes)
+      }
+      return
+    }
+
+    this.playbackTimeouts = []
+    for (const { timeMs, noteName, durationSeconds } of playAtTimes) {
+      const id = setTimeout(() => {
+        this.playNote(noteName, durationSeconds, Tone.now())
+      }, timeMs)
+      this.playbackTimeouts.push(id)
+    }
+
+    await new Promise<void>((resolve) => {
+      const id = setTimeout(() => {
+        this.playbackTimeouts = []
+        resolve()
+      }, totalDurationMs)
+      this.playbackTimeouts.push(id)
+    })
+  }
+
+  /**
    * Stop any currently playing audio
    */
   stop(): void {
+    for (const id of this.playbackTimeouts) {
+      clearTimeout(id)
+    }
+    this.playbackTimeouts = []
     if (this.synth) {
       this.synth.releaseAll()
+    }
+    if (this.pianoSampler) {
+      this.pianoSampler.releaseAll()
     }
     Tone.Transport.stop()
     Tone.Transport.cancel()
@@ -565,6 +732,18 @@ export class MusicAudioGenerator {
     if (this.synth) {
       this.synth.dispose()
       this.synth = null
+    }
+    if (this.pianoSampler) {
+      this.pianoSampler.dispose()
+      this.pianoSampler = null
+    }
+    if (this.metronomePlayer) {
+      this.metronomePlayer.dispose()
+      this.metronomePlayer = null
+    }
+    if (this.metronomePlayerAccent) {
+      this.metronomePlayerAccent.dispose()
+      this.metronomePlayerAccent = null
     }
     this.initialized = false
   }

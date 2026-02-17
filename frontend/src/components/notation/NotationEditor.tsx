@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 import Vex from 'vexflow'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Trash2, Undo2, Redo2 } from 'lucide-react'
+import { Trash2, Undo2, Redo2, Play, Square, Timer } from 'lucide-react'
+import { musicAudioGenerator } from '@/lib/music-theory/audioGenerator'
+import * as Tone from 'tone'
 
 const { Renderer, Stave, StaveNote, Voice, Formatter, Accidental, Beam, Dot } = Vex.Flow
 
@@ -121,6 +123,9 @@ export function NotationEditor({
   const [cursorPreview, setCursorPreview] = useState<{ x: number; y: number; show: boolean; pitch: string | null }>({ x: 0, y: 0, show: false, pitch: null })
   const keySequenceRef = useRef<string>('')
   const keySequenceTimeoutRef = useRef<NodeJS.Timeout | null>(null)
+  const [playing, setPlaying] = useState(false)
+  const [playbackTempo, setPlaybackTempo] = useState(120)
+  const [metronomeEnabled, setMetronomeEnabled] = useState(false)
 
   // Time signature options
   const timeSignatureOptions = [
@@ -2390,6 +2395,79 @@ export function NotationEditor({
                 )}
               </div>
             )}
+          </div>
+
+          {/* Playback Controls */}
+          <div className="flex items-center gap-2 flex-wrap">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                if (notes.length === 0) return
+                setPlaying(true)
+                Tone.start().then(async () => {
+                  try {
+                    await musicAudioGenerator.playNotationScore({
+                      notes,
+                      tempo: playbackTempo,
+                      timeSignature: selectedTimeSignature,
+                      metronomeEnabled,
+                      instrument: 'piano'
+                    })
+                  } catch (err) {
+                    console.error('Playback error:', err)
+                    alert('Playback failed. Please check browser audio permissions and try again.')
+                  } finally {
+                    setPlaying(false)
+                  }
+                }).catch((err) => {
+                  console.error('Audio context failed:', err)
+                  alert('Could not start audio. Please interact with the page first or check browser permissions.')
+                  setPlaying(false)
+                })
+              }}
+              disabled={notes.length === 0 || playing}
+            >
+              <Play className="h-4 w-4 mr-1" />
+              {playing ? 'Playing...' : 'Play'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                musicAudioGenerator.stop()
+                setPlaying(false)
+              }}
+              disabled={!playing}
+            >
+              <Square className="h-4 w-4 mr-1" />
+              Stop
+            </Button>
+            <div className="flex items-center gap-1">
+              <Label htmlFor="playback-tempo" className="text-xs whitespace-nowrap">Tempo:</Label>
+              <input
+                id="playback-tempo"
+                type="number"
+                min={60}
+                max={200}
+                value={playbackTempo}
+                onChange={(e) => setPlaybackTempo(Math.min(200, Math.max(60, parseInt(e.target.value) || 120)))}
+                className="w-14 px-2 py-1 text-sm border rounded"
+              />
+              <span className="text-xs text-gray-500">BPM</span>
+            </div>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={metronomeEnabled}
+                onChange={(e) => setMetronomeEnabled(e.target.checked)}
+                className="rounded"
+              />
+              <Timer className="h-4 w-4 text-gray-600" />
+              <span className="text-xs">Metronome (1 bar before)</span>
+            </label>
           </div>
 
           {/* History Controls */}

@@ -22,6 +22,7 @@
     "@supabase/auth-helpers-nextjs": "^0.8.7",
     "@supabase/supabase-js": "^2.38.0",
     "@tonaljs/tonal": "^4.10.0",
+    "@tonejs/piano": "^0.2.1",
     "@xmldom/xmldom": "^0.8.11",
     "axios": "^1.6.2",
     "class-variance-authority": "^0.7.0",
@@ -39,6 +40,7 @@
     "tone": "^15.1.22",
     "uuid": "^9.0.1",
     "vexflow": "^4.2.3",
+    "webmidi": "^3.1.14",
     "zod": "^3.22.4"
   },
   "devDependencies": {
