@@ -39,6 +39,7 @@ interface Barline {
 
 interface NotationEditorProps {
   initialNotes?: Note[]
+  initialTitle?: string
   clef?: 'treble' | 'bass' | 'alto' | 'tenor'
   initialKeySignature?: string
   initialTimeSignature?: string
@@ -76,6 +77,7 @@ function CollapsibleSection({
 
 export function NotationEditor({
   initialNotes = [],
+  initialTitle = '',
   clef = 'treble',
   initialKeySignature,
   initialTimeSignature,
@@ -117,7 +119,10 @@ export function NotationEditor({
     if (clef) {
       setSelectedClef(clef)
     }
-  }, [syncFromProps, initialNotes, initialKeySignature, initialTimeSignature, initialMeasureCount, clef])
+    if (initialTitle !== undefined) {
+      setScoreTitle(initialTitle)
+    }
+  }, [syncFromProps, initialNotes, initialKeySignature, initialTimeSignature, initialMeasureCount, clef, initialTitle])
   const [selectedNote, setSelectedNote] = useState<string | null>(null)
   const [selectedDuration, setSelectedDuration] = useState<string>('q') // quarter note
   const [selectedPitch, setSelectedPitch] = useState<string>('C/4')
@@ -144,6 +149,7 @@ export function NotationEditor({
   const [measureCount, setMeasureCount] = useState<number>(initialMeasureCount || (initialNotes.length > 0 ? Math.max(...initialNotes.map(n => (n.measure || 0))) + 1 : 4)) // Start with 4 measures or calculated from notes
   const [currentMeasure, setCurrentMeasure] = useState<number>(0) // Currently active measure for adding notes
   const [measuresPerLine, setMeasuresPerLine] = useState<number>(4) // Measures per line
+  const [scoreTitle, setScoreTitle] = useState<string>(initialTitle || '')
   const [selectedBarlineType, setSelectedBarlineType] = useState<'single' | 'double' | 'final' | 'repeat-start' | 'repeat-end'>('single')
   const [cursorPreview, setCursorPreview] = useState<{ x: number; y: number; show: boolean; pitch: string | null }>({ x: 0, y: 0, show: false, pitch: null })
   const keySequenceRef = useRef<string>('')
@@ -512,10 +518,14 @@ export function NotationEditor({
     </measure>`
     }).join('')
 
+    const workTitleXML = scoreTitle.trim()
+      ? `  <work>\n    <work-title>${scoreTitle.trim().replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')}</work-title>\n  </work>\n`
+      : ''
+
     return `<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE score-partwise PUBLIC "-//Recordare//DTD MusicXML 3.1 Partwise//EN" "http://www.musicxml.org/dtds/partwise.dtd">
 <score-partwise version="3.1">
-  <part-list>
+${workTitleXML}  <part-list>
     <score-part id="P1">
       <part-name>Music</part-name>
     </score-part>
@@ -543,7 +553,14 @@ export function NotationEditor({
 
   useEffect(() => {
     renderNotation()
-  }, [notes, selectedClef, selectedKeySignature, selectedTimeSignature, measureCount, currentMeasure, measuresPerLine, selectedNote, selectedNoteForMove, draggingNote, dragPreviewPitch, editMode])
+  }, [notes, selectedClef, selectedKeySignature, selectedTimeSignature, measureCount, currentMeasure, measuresPerLine, selectedNote, selectedNoteForMove, draggingNote, dragPreviewPitch, editMode, scoreTitle])
+
+  // Notify parent when title changes (so MusicXML export includes title)
+  useEffect(() => {
+    if (onChange) {
+      onChange(notes, generateMusicXML(notes))
+    }
+  }, [scoreTitle])
 
   // Handle keyboard shortcuts
   useEffect(() => {
@@ -1071,7 +1088,8 @@ export function NotationEditor({
     // For subsequent lines, the extra width is accounted for when we position measures
     const baseCanvasWidth = measuresInFirstLine * baseMeasureWidth + extraWidthForFirstLine + 70
     const canvasWidth = baseCanvasWidth
-    const canvasHeight = numberOfLines * staveHeight + (numberOfLines - 1) * lineSpacing
+    const titleHeight = scoreTitle.trim() ? 36 : 0
+    const canvasHeight = titleHeight + numberOfLines * staveHeight + (numberOfLines - 1) * lineSpacing
 
     // Create renderer
     const renderer = new Renderer(canvasRef.current, Renderer.Backends.SVG)
@@ -1079,10 +1097,21 @@ export function NotationEditor({
     const context = renderer.getContext()
     context.setFont('Arial', 10)
 
+    // Draw title centered at top (if present)
+    if (scoreTitle.trim()) {
+      context.setFont('Arial', 16)
+      context.setFillStyle('#333')
+      const titleY = 22
+      const titleText = scoreTitle.trim()
+      const textWidth = context.measureText(titleText).width
+      context.fillText(titleText, (canvasWidth - textWidth) / 2, titleY)
+      context.setFont('Arial', 10)
+    }
+
     // Render each measure
     const staves: any[] = []
     let xPosition = 10
-    let yPosition = 40
+    let yPosition = 40 + titleHeight
     let measuresInCurrentLine = 0
 
     // Only render staves for measures that exist (up to measureCount)
@@ -2177,6 +2206,14 @@ export function NotationEditor({
             </CollapsibleSection>
             <CollapsibleSection title="Layout">
               <div className="space-y-2">
+                <div><Label className="text-xs">Título</Label>
+                <input
+                  type="text"
+                  className="flex h-9 w-full rounded-md border px-2 text-sm mt-0.5"
+                  placeholder="Título de la obra"
+                  value={scoreTitle}
+                  onChange={(e) => setScoreTitle(e.target.value)}
+                /></div>
                 <div><Label className="text-xs">Compás actual</Label>
                 <select className="flex h-9 w-full rounded-md border px-2 text-sm mt-0.5" value={currentMeasure} onChange={(e) => setCurrentMeasure(Number(e.target.value))}>
                   {Array.from({ length: measureCount }, (_, i) => <option key={i} value={i}>Compás {i + 1}</option>)}

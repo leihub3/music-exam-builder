@@ -4,6 +4,7 @@
  */
 
 export interface ParsedMusicXML {
+  title?: string
   notes: Array<{
     id: string
     pitch: string
@@ -43,6 +44,14 @@ export function parseMusicXMLToNotes(musicXML: string): ParsedMusicXML {
         timeSignature: '4/4',
         measureCount: 1,
       }
+    }
+
+    // Parse work title (MusicXML: work > work-title)
+    let title: string | undefined
+    const workEl = xmlDoc.querySelector('work')
+    const workTitleEl = workEl?.querySelector('work-title')
+    if (workTitleEl?.textContent?.trim()) {
+      title = workTitleEl.textContent.trim()
     }
 
     const part =
@@ -208,6 +217,7 @@ export function parseMusicXMLToNotes(musicXML: string): ParsedMusicXML {
     })
 
     return {
+      title,
       notes,
       clef,
       keySignature,
@@ -225,3 +235,4 @@ export function parseMusicXMLToNotes(musicXML: string): ParsedMusicXML {
     }
   }
 }
+

@@ -31,6 +31,7 @@ export default function TeacherDashboard() {
   const [editorMusicXML, setEditorMusicXML] = useState<string | null>(null)
   const [loadedNotation, setLoadedNotation] = useState<{
     notes: any[]
+    title?: string
     clef: 'treble' | 'bass' | 'alto' | 'tenor'
     keySignature: string
     timeSignature: string
@@ -136,6 +137,7 @@ export default function TeacherDashboard() {
       const parsed = parseMusicXMLToNotes(xmlContent)
       setLoadedNotation({
         notes: parsed.notes,
+        title: parsed.title,
         clef: parsed.clef,
         keySignature: parsed.keySignature,
         timeSignature: parsed.timeSignature,
@@ -358,6 +360,7 @@ export default function TeacherDashboard() {
               <NotationEditor
                 key={`dashboard-editor-${loadedNotation ? 'loaded' : 'new'}-${loadedNotation?.notes?.length ?? 0}`}
                 initialNotes={loadedNotation?.notes ?? []}
+                initialTitle={loadedNotation?.title ?? ''}
                 clef={loadedNotation?.clef ?? 'treble'}
                 initialKeySignature={loadedNotation?.keySignature}
                 initialTimeSignature={loadedNotation?.timeSignature}
