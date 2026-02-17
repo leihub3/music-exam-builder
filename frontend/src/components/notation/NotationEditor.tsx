@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from 'react'
 import Vex from 'vexflow'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
-import { Trash2, Undo2, Redo2, Play, Square, Timer } from 'lucide-react'
+import { Trash2, Undo2, Redo2, Play, Square, Timer, ChevronDown, ChevronRight } from 'lucide-react'
 import { musicAudioGenerator } from '@/lib/music-theory/audioGenerator'
 import * as Tone from 'tone'
 
@@ -47,6 +47,31 @@ interface NotationEditorProps {
   readOnly?: boolean
   /** When false, does not sync/clear from initialNotes on re-render. Use for "create new" mode where parent passes []. */
   syncFromProps?: boolean
+}
+
+function CollapsibleSection({
+  title,
+  defaultOpen = true,
+  children
+}: {
+  title: string
+  defaultOpen?: boolean
+  children: React.ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <div className="border-b border-gray-200">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm font-medium hover:bg-gray-50"
+      >
+        {open ? <ChevronDown className="h-4 w-4 shrink-0" /> : <ChevronRight className="h-4 w-4 shrink-0" />}
+        {title}
+      </button>
+      {open && <div className="px-3 pb-3 pt-1">{children}</div>}
+    </div>
+  )
 }
 
 export function NotationEditor({
@@ -2036,471 +2061,148 @@ export function NotationEditor({
   }
 
   return (
-    <div className="space-y-4">
-      {/* Toolbar */}
+    <div className="flex flex-col h-full min-h-[500px]">
+      {/* Header: Duración + Playback + Undo/Redo - FIXED at top */}
       {!readOnly && (
-        <div className="border rounded-lg p-4 bg-gray-50 space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-8 gap-4">
-            {/* Clef Selector */}
-            <div className="space-y-2">
-              <Label>Clave (Clef)</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedClef}
-                onChange={(e) => setSelectedClef(e.target.value as 'treble' | 'bass' | 'alto' | 'tenor')}
-              >
-                <option value="treble">Sol (Treble) 🎼</option>
-                <option value="bass">Fa (Bass) 🎵</option>
-                <option value="alto">Do en 3ra (Alto) 🎶</option>
-                <option value="tenor">Do en 4ta (Tenor) 🎶</option>
-              </select>
-            </div>
-
-            {/* Key Signature Selector */}
-            <div className="space-y-2 md:col-span-2">
-              <Label>Armadura (Key Signature)</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedKeySignature}
-                onChange={(e) => setSelectedKeySignature(e.target.value)}
-              >
-                {keySignatureOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Time Signature Selector */}
-            <div className="space-y-2">
-              <Label>Compás (Time Signature)</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedTimeSignature}
-                onChange={(e) => setSelectedTimeSignature(e.target.value)}
-              >
-                {timeSignatureOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Pitch Selector */}
-            <div className="space-y-2">
-              <Label>Nota (Pitch)</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedPitch}
-                onChange={(e) => setSelectedPitch(e.target.value)}
-                disabled={isRest}
-              >
-                {pitchOptions.map(option => (
-                  <option key={option.value} value={option.value}>
-                    {option.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* Accidental Selector */}
-            <div className="space-y-2">
-              <Label>Alteración <span className="text-xs text-gray-500">(+/-/= toggle)</span></Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedAccidental || ''}
-                onChange={(e) => setSelectedAccidental(e.target.value === '' ? null : e.target.value as '#' | 'b' | 'n')}
-                disabled={isRest}
-              >
-                <option value="">Ninguna</option>
-                <option value="#">Sostenido (#) [+]</option>
-                <option value="b">Bemol (b) [-]</option>
-                <option value="n">Becuarto (♮) [= toggle]</option>
-              </select>
-            </div>
-
-            {/* Duration Selector */}
-            <div className="space-y-2">
-              <Label>Duración <span className="text-xs text-gray-500">(1/2/4/8/16)</span></Label>
-              <div className="flex gap-2 items-center">
-                <select
-                  className="flex h-10 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={selectedDuration}
-                  onChange={(e) => setSelectedDuration(e.target.value)}
-                >
-                  {durationOptions.map(option => {
-                    const shortcut = option.value === 'w' ? '1' : 
-                                    option.value === 'h' ? '2' : 
-                                    option.value === 'q' ? '4' : 
-                                    option.value === '8' ? '8' : 
-                                    option.value === '16' ? '16' : ''
-                    return (
-                      <option key={option.value} value={option.value}>
-                        {option.label} {shortcut && `[${shortcut}]`}
-                      </option>
-                    )
-                  })}
-                </select>
-                <Button
-                  type="button"
-                  variant={selectedDot ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => {
-                    const newDot = !selectedDot
-                    if (selectedNote) {
-                      applyDot(newDot)
-                    } else {
-                      setSelectedDot(newDot)
-                    }
-                  }}
-                  title="Puntillo (agrega la mitad del valor)"
-                  className="h-10 px-3 min-w-[45px] flex items-center justify-center"
-                >
-                  <span className="text-xl font-bold leading-none">•</span>
-                </Button>
-              </div>
-              {selectedDot && (
-                <p className="text-xs text-blue-600">Puntillo activo</p>
-              )}
-            </div>
-
-            {/* Articulation Selector */}
-            <div className="space-y-2">
-              <Label>Articulación</Label>
-              <select
-                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                value={selectedArticulation || ''}
-                onChange={(e) => {
-                  const art = e.target.value === '' ? null : e.target.value as 'staccato' | 'accent' | 'tenuto' | 'staccatissimo' | 'marcato'
-                  setSelectedArticulation(art)
-                  if (selectedNote) {
-                    applyArticulation(art)
-                  }
-                }}
-                disabled={isRest}
-              >
-                <option value="">Ninguna</option>
-                <option value="staccato">Staccato (.)</option>
-                <option value="accent">Acento (&gt;)</option>
-                <option value="tenuto">Tenuto (-)</option>
-                <option value="staccatissimo">Staccatissimo (!)</option>
-                <option value="marcato">Marcato (^)</option>
-              </select>
-            </div>
-
-            {/* Note Type Toggle */}
-            <div className="space-y-2">
-              <Label>Tipo <span className="text-xs text-gray-500">(n)</span></Label>
-              <div className="flex flex-col space-y-2">
-                <div className="grid grid-cols-3 gap-2">
-                  <Button
-                    type="button"
-                    variant={editMode === 'note' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setEditMode('note')
-                      setIsRest(false)
-                      setSelectedNoteForMove(null)
-                    }}
-                    className="flex-1"
-                    title="Nota (agregar notas)"
-                  >
-                    <span className="text-xl">♪</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={editMode === 'rest' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setEditMode('rest')
-                      setIsRest(true)
-                      setSelectedNoteForMove(null)
-                    }}
-                    className="flex-1"
-                    title="Silencio (agregar silencios)"
-                  >
-                    <span className="text-xl">𝄽</span>
-                  </Button>
-                  <Button
-                    type="button"
-                    variant={editMode === 'select' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => {
-                      setEditMode('select')
-                      setIsRest(false)
-                      setSelectedNoteForMove(null)
-                    }}
-                    className="flex-1"
-                    title="Seleccionar (mover notas)"
-                  >
-                    <span className="text-xl">✋</span>
-                  </Button>
-                </div>
-                {editMode === 'rest' && (
-                  <div className="text-xs text-orange-600 font-medium bg-orange-50 px-2 py-1 rounded">
-                    ⚠️ Modo Silencio activo
-                  </div>
-                )}
-                {editMode === 'select' && (
-                  <div className="text-xs text-blue-600 font-medium bg-blue-50 px-2 py-1 rounded">
-                    💡 Haz clic en una nota para seleccionarla, luego arrástrala arriba/abajo para moverla
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Actions Row */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Button
-              type="button"
-              onClick={isRest ? addRest : addNote}
-              size="sm"
-              className="w-full"
-            >
-              {isRest ? 'Agregar Silencio' : 'Agregar Nota'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={clearAll}
-              className="w-full"
-            >
-              Limpiar Todo
-            </Button>
-            <div className="text-sm text-gray-600 flex items-center justify-center">
-              💡 Click en el pentagrama para agregar
-            </div>
-          </div>
-
-          {/* Measures Control Row */}
-          <div className="border-t pt-4 mt-2">
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
-              <div className="space-y-2">
-                <Label>Compás Actual (Current Measure)</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={currentMeasure}
-                  onChange={(e) => setCurrentMeasure(Number(e.target.value))}
-                >
-                  {Array.from({ length: measureCount }, (_, i) => (
-                    <option key={i} value={i}>
-                      Compás {i + 1} [{getMeasureBeats(i)}]
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-gray-500">
-                  ⌨️ Use ← → arrow keys to navigate
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label>Compases por Línea</Label>
-                <select
-                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  value={measuresPerLine}
-                  onChange={(e) => setMeasuresPerLine(Number(e.target.value))}
-                >
-                  <option value={2}>2 compases</option>
-                  <option value={3}>3 compases</option>
-                  <option value={4}>4 compases</option>
-                  <option value={5}>5 compases</option>
-                  <option value={6}>6 compases</option>
-                  <option value={8}>8 compases</option>
-                </select>
-              </div>
-              <div className="space-y-2">
-                <Label>Total de Compases</Label>
-                <div className="flex h-10 items-center px-3 py-2 text-sm font-medium">
-                  {measureCount} compás{measureCount !== 1 ? 'es' : ''} ({Math.ceil(measureCount / measuresPerLine)} línea{Math.ceil(measureCount / measuresPerLine) !== 1 ? 's' : ''})
-                </div>
-              </div>
-              <Button
-                type="button"
-                onClick={addMeasure}
-                size="sm"
-                className="w-full"
-              >
-                ➕ Agregar Compás
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={removeMeasure}
-                className="w-full"
-                disabled={measureCount <= 1}
-              >
-                ➖ Quitar Compás
-              </Button>
-            </div>
-            <div className="mt-2 text-sm text-gray-600">
-              💡 Las notas se agregan al compás actual. El compás avanza automáticamente cuando se llena.
-            </div>
-          </div>
-
-          {/* Ligaduras (Ties & Slurs) */}
-          <div className="border-t pt-4">
-            <Label className="mb-2 block">Ligaduras</Label>
-            <div className="grid grid-cols-2 gap-2">
-              <Button
-                type="button"
-                variant={tieMode ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  setTieMode(!tieMode)
-                  setSlurMode(false)
-                  setFirstNoteForTie(null)
-                  setFirstNoteForSlur(null)
-                  if (tieMode) setSelectedNote(null)
-                }}
-                className="w-full"
-              >
-                {tieMode ? '✓ Ligadura de Unión (Tie)' : 'Ligadura de Unión (Tie)'}
-              </Button>
-              <Button
-                type="button"
-                variant={slurMode ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => {
-                  setSlurMode(!slurMode)
-                  setTieMode(false)
-                  setFirstNoteForTie(null)
-                  setFirstNoteForSlur(null)
-                  if (slurMode) setSelectedNote(null)
-                }}
-                className="w-full"
-              >
-                {slurMode ? '✓ Ligadura de Expresión (Slur)' : 'Ligadura de Expresión (Slur)'}
-              </Button>
-            </div>
-            {(tieMode || slurMode) && (
-              <div className="mt-2 space-y-1">
-                <p className="text-xs text-gray-600">
-                  {tieMode 
-                    ? '💡 Selecciona dos notas del mismo pitch para crear una ligadura de unión'
-                    : '💡 Selecciona dos notas para crear una ligadura de expresión'}
-                </p>
-                {tieMode && firstNoteForTie && (
-                  <p className="text-xs text-purple-600 font-medium">
-                    ✓ Primera nota seleccionada. Haz clic en otra nota del mismo pitch.
-                  </p>
-                )}
-                {slurMode && firstNoteForSlur && (
-                  <p className="text-xs text-purple-600 font-medium">
-                    ✓ Primera nota seleccionada. Haz clic en otra nota para completar la ligadura.
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Playback Controls */}
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                if (notes.length === 0) return
-                setPlaying(true)
-                Tone.start().then(async () => {
-                  try {
-                    await musicAudioGenerator.playNotationScore({
-                      notes,
-                      tempo: playbackTempo,
-                      timeSignature: selectedTimeSignature,
-                      metronomeEnabled,
-                      instrument: 'piano'
-                    })
-                  } catch (err) {
-                    console.error('Playback error:', err)
-                    alert('Playback failed. Please check browser audio permissions and try again.')
-                  } finally {
-                    setPlaying(false)
-                  }
-                }).catch((err) => {
-                  console.error('Audio context failed:', err)
-                  alert('Could not start audio. Please interact with the page first or check browser permissions.')
-                  setPlaying(false)
-                })
-              }}
-              disabled={notes.length === 0 || playing}
-            >
-              <Play className="h-4 w-4 mr-1" />
-              {playing ? 'Playing...' : 'Play'}
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                musicAudioGenerator.stop()
-                setPlaying(false)
-              }}
-              disabled={!playing}
-            >
-              <Square className="h-4 w-4 mr-1" />
-              Stop
-            </Button>
+        <header className="sticky top-0 z-10 border-b px-4 py-2 flex items-center gap-4 flex-wrap bg-gray-50 shrink-0">
+          {/* Duración */}
+          <div className="flex items-center gap-2">
+            <Label className="text-xs font-medium text-gray-600">Duración</Label>
             <div className="flex items-center gap-1">
-              <Label htmlFor="playback-tempo" className="text-xs whitespace-nowrap">Tempo:</Label>
-              <input
-                id="playback-tempo"
-                type="number"
-                min={60}
-                max={200}
-                value={playbackTempo}
-                onChange={(e) => setPlaybackTempo(Math.min(200, Math.max(60, parseInt(e.target.value) || 120)))}
-                className="w-14 px-2 py-1 text-sm border rounded"
-              />
-              <span className="text-xs text-gray-500">BPM</span>
-            </div>
-            <label className="flex items-center gap-2 cursor-pointer">
-              <input
-                type="checkbox"
-                checked={metronomeEnabled}
-                onChange={(e) => setMetronomeEnabled(e.target.checked)}
-                className="rounded"
-              />
-              <Timer className="h-4 w-4 text-gray-600" />
-              <span className="text-xs">Metronome (throughout)</span>
-            </label>
-          </div>
-
-          {/* History Controls */}
-          <div className="flex space-x-2">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={undo}
-              disabled={historyIndex === 0}
-            >
-              <Undo2 className="h-4 w-4 mr-1" />
-              Deshacer
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={redo}
-              disabled={historyIndex >= history.length - 1}
-            >
-              <Redo2 className="h-4 w-4 mr-1" />
-              Rehacer
-            </Button>
-            <div className="ml-auto text-sm text-gray-600">
-              {notes.length} nota(s)
+              {(['w', 'h', 'q', '8', '16'] as const).map((d) => (
+                <Button
+                  key={d}
+                  type="button"
+                  variant={selectedDuration === d ? 'default' : 'outline'}
+                  size="sm"
+                  className="h-9 w-9 p-0 text-lg"
+                  onClick={() => setSelectedDuration(d)}
+                  title={durationOptions.find(o => o.value === d)?.label}
+                >
+                  {d === 'w' ? '𝅝' : d === 'h' ? '𝅗𝅥' : d === 'q' ? '♩' : d === '8' ? '♪' : '♬'}
+                </Button>
+              ))}
+              <Button
+                type="button"
+                variant={selectedDot ? 'default' : 'outline'}
+                size="sm"
+                className="h-9 px-2"
+                onClick={() => { const v = !selectedDot; if (selectedNote) applyDot(v); else setSelectedDot(v) }}
+                title="Puntillo"
+              >
+                •
+              </Button>
             </div>
           </div>
-        </div>
+          <div className="h-6 w-px bg-gray-300" />
+          {/* Playback */}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => { if (notes.length === 0) return; setPlaying(true); Tone.start().then(async () => { try { await musicAudioGenerator.playNotationScore({ notes, tempo: playbackTempo, timeSignature: selectedTimeSignature, metronomeEnabled, instrument: 'piano' }); } catch (e) { console.error(e); alert('Playback failed.'); } finally { setPlaying(false) } }).catch(() => setPlaying(false)) }} disabled={notes.length === 0 || playing}>
+              <Play className="h-4 w-4 mr-1" /> {playing ? '...' : 'Play'}
+            </Button>
+            <Button variant="outline" size="sm" onClick={() => { musicAudioGenerator.stop(); setPlaying(false) }} disabled={!playing}>
+              <Square className="h-4 w-4 mr-1" /> Stop
+            </Button>
+            <input type="number" min={60} max={200} value={playbackTempo} onChange={(e) => setPlaybackTempo(Math.min(200, Math.max(60, parseInt(e.target.value) || 120)))} className="w-12 px-1 py-0.5 text-sm border rounded" />
+            <span className="text-xs text-gray-500">♩={playbackTempo}</span>
+            <label className="flex items-center gap-1 cursor-pointer"><input type="checkbox" checked={metronomeEnabled} onChange={(e) => setMetronomeEnabled(e.target.checked)} className="rounded" /><Timer className="h-4 w-4" /></label>
+          </div>
+          <div className="h-6 w-px bg-gray-300" />
+          <Button variant="outline" size="sm" onClick={undo} disabled={historyIndex === 0}><Undo2 className="h-4 w-4 mr-1" /> Deshacer</Button>
+          <Button variant="outline" size="sm" onClick={redo} disabled={historyIndex >= history.length - 1}><Redo2 className="h-4 w-4 mr-1" /> Rehacer</Button>
+          <span className="text-xs text-gray-500 ml-auto">{notes.length} nota(s)</span>
+        </header>
       )}
 
+      {/* Main: Left Palettes + Score */}
+      <div className="flex flex-1 min-h-0">
+        {/* Left palettes */}
+        {!readOnly && (
+          <aside className="w-64 border-r bg-gray-50 flex flex-col shrink-0 min-h-0 overflow-y-auto overscroll-contain">
+            <h3 className="px-3 py-2 font-semibold text-sm border-b">Paletas</h3>
+            <CollapsibleSection title="Clave" defaultOpen>
+              <select className="flex h-9 w-full rounded-md border px-2 text-sm" value={selectedClef} onChange={(e) => setSelectedClef(e.target.value as 'treble' | 'bass' | 'alto' | 'tenor')}>
+                <option value="treble">Sol (Treble)</option>
+                <option value="bass">Fa (Bass)</option>
+                <option value="alto">Do 3ra (Alto)</option>
+                <option value="tenor">Do 4ta (Tenor)</option>
+              </select>
+            </CollapsibleSection>
+            <CollapsibleSection title="Armadura" defaultOpen>
+              <select className="flex h-9 w-full rounded-md border px-2 text-sm" value={selectedKeySignature} onChange={(e) => setSelectedKeySignature(e.target.value)}>
+                {keySignatureOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </CollapsibleSection>
+            <CollapsibleSection title="Compás" defaultOpen>
+              <select className="flex h-9 w-full rounded-md border px-2 text-sm" value={selectedTimeSignature} onChange={(e) => setSelectedTimeSignature(e.target.value)}>
+                {timeSignatureOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </CollapsibleSection>
+            <CollapsibleSection title="Nota (Pitch)">
+              <select className="flex h-9 w-full rounded-md border px-2 text-sm" value={selectedPitch} onChange={(e) => setSelectedPitch(e.target.value)} disabled={isRest}>
+                {pitchOptions.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              </select>
+            </CollapsibleSection>
+            <CollapsibleSection title="Alteración">
+              <select className="flex h-9 w-full rounded-md border px-2 text-sm" value={selectedAccidental || ''} onChange={(e) => setSelectedAccidental(e.target.value === '' ? null : e.target.value as '#' | 'b' | 'n')} disabled={isRest}>
+                <option value="">Ninguna</option>
+                <option value="#">♯</option>
+                <option value="b">♭</option>
+                <option value="n">♮</option>
+              </select>
+            </CollapsibleSection>
+            <CollapsibleSection title="Articulación">
+              <select className="flex h-9 w-full rounded-md border px-2 text-sm" value={selectedArticulation || ''} onChange={(e) => { const a = e.target.value === '' ? null : e.target.value as 'staccato' | 'accent' | 'tenuto' | 'staccatissimo' | 'marcato'; setSelectedArticulation(a); if (selectedNote) applyArticulation(a) }} disabled={isRest}>
+                <option value="">Ninguna</option>
+                <option value="staccato">Staccato</option>
+                <option value="accent">Acento</option>
+                <option value="tenuto">Tenuto</option>
+                <option value="staccatissimo">Staccatissimo</option>
+                <option value="marcato">Marcato</option>
+              </select>
+            </CollapsibleSection>
+            <CollapsibleSection title="Tipo">
+              <div className="grid grid-cols-3 gap-1">
+                <Button variant={editMode === 'note' ? 'default' : 'outline'} size="sm" className="text-lg" onClick={() => { setEditMode('note'); setIsRest(false); setSelectedNoteForMove(null) }} title="Nota">♪</Button>
+                <Button variant={editMode === 'rest' ? 'default' : 'outline'} size="sm" className="text-lg" onClick={() => { setEditMode('rest'); setIsRest(true); setSelectedNoteForMove(null) }} title="Silencio">𝄽</Button>
+                <Button variant={editMode === 'select' ? 'default' : 'outline'} size="sm" onClick={() => { setEditMode('select'); setIsRest(false); setSelectedNoteForMove(null) }} title="Seleccionar">✋</Button>
+              </div>
+              {editMode === 'rest' && <p className="text-xs text-orange-600 mt-1">Modo Silencio</p>}
+            </CollapsibleSection>
+            <CollapsibleSection title="Ligaduras">
+              <div className="space-y-2">
+                <Button variant={tieMode ? 'default' : 'outline'} size="sm" className="w-full" onClick={() => { setTieMode(!tieMode); setSlurMode(false); setFirstNoteForTie(null); setFirstNoteForSlur(null); if (tieMode) setSelectedNote(null) }}>Tie</Button>
+                <Button variant={slurMode ? 'default' : 'outline'} size="sm" className="w-full" onClick={() => { setSlurMode(!slurMode); setTieMode(false); setFirstNoteForTie(null); setFirstNoteForSlur(null); if (slurMode) setSelectedNote(null) }}>Slur</Button>
+              </div>
+            </CollapsibleSection>
+            <CollapsibleSection title="Layout">
+              <div className="space-y-2">
+                <div><Label className="text-xs">Compás actual</Label>
+                <select className="flex h-9 w-full rounded-md border px-2 text-sm mt-0.5" value={currentMeasure} onChange={(e) => setCurrentMeasure(Number(e.target.value))}>
+                  {Array.from({ length: measureCount }, (_, i) => <option key={i} value={i}>Compás {i + 1}</option>)}
+                </select></div>
+                <div><Label className="text-xs">Compases por línea</Label>
+                <select className="flex h-9 w-full rounded-md border px-2 text-sm mt-0.5" value={measuresPerLine} onChange={(e) => setMeasuresPerLine(Number(e.target.value))}>
+                  {[2,3,4,5,6,8].map((n) => <option key={n} value={n}>{n}</option>)}
+                </select></div>
+                <div className="flex gap-1">
+                  <Button size="sm" className="flex-1" onClick={addMeasure}>➕</Button>
+                  <Button size="sm" variant="outline" className="flex-1" onClick={removeMeasure} disabled={measureCount <= 1}>➖</Button>
+                </div>
+                <p className="text-xs text-gray-500">{measureCount} compases</p>
+              </div>
+            </CollapsibleSection>
+            <div className="p-3 border-t">
+              <Button size="sm" className="w-full" onClick={isRest ? addRest : addNote}>{isRest ? 'Agregar Silencio' : 'Agregar Nota'}</Button>
+              <Button size="sm" variant="outline" className="w-full mt-2" onClick={clearAll}>Limpiar</Button>
+            </div>
+          </aside>
+        )}
+
+        {/* Score area */}
+        <main className="flex-1 flex flex-col min-w-0 min-h-0 overflow-hidden">
       {/* Notation Canvas */}
-      <div className="border rounded-lg p-4 bg-white overflow-x-auto">
+      <div className="border rounded-lg p-4 bg-white flex-1 min-h-0 overflow-auto overscroll-contain">
         <div className="relative">
           <div 
             ref={canvasRef} 
@@ -2693,6 +2395,8 @@ export function NotationEditor({
           </div>
         </div>
       )}
+        </main>
+      </div>
     </div>
   )
 }

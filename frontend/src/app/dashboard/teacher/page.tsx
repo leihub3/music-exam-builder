@@ -352,8 +352,9 @@ export default function TeacherDashboard() {
           <DialogHeader className="px-6 py-4 border-b shrink-0">
             <DialogTitle className="text-xl">Notation Editor - Create or Edit Score</DialogTitle>
           </DialogHeader>
-          <div className="flex-1 overflow-auto p-6 bg-gray-50">
+          <div className="flex-1 min-h-0 overflow-hidden p-6 bg-gray-50 flex flex-col">
             {notationEditorOpen && (
+              <div className="flex-1 min-h-0 flex flex-col">
               <NotationEditor
                 key={`dashboard-editor-${loadedNotation ? 'loaded' : 'new'}-${loadedNotation?.notes?.length ?? 0}`}
                 initialNotes={loadedNotation?.notes ?? []}
@@ -366,6 +367,7 @@ export default function TeacherDashboard() {
                   if (musicXML) setEditorMusicXML(musicXML)
                 }}
               />
+              </div>
             )}
           </div>
           <div className="px-6 py-4 border-t bg-white shrink-0 flex items-center justify-between">
